@@ -43,6 +43,9 @@ handleForeignObject:(IJSVGForeignObject *)foreignObject
 
 @property ( nonatomic, readonly ) NSRect viewBox;
 
+- (id)initWithData:(NSData *)data
+          encoding:(NSStringEncoding)encoding
+          delegate:(id<IJSVGParserDelegate>)delegate;
 - (id)initWithFileURL:(NSURL *)aURL
              delegate:(id<IJSVGParserDelegate>)delegate;
 - (id)initWithFileURL:(NSURL *)aURL

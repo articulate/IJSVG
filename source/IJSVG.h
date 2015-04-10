@@ -39,6 +39,8 @@ handleForeignObject:(IJSVGForeignObject *)foreignObject
 + (id)svgNamed:(NSString *)string
       delegate:(id<IJSVGDelegate>)delegate;
 
+- (id)initWithData:(NSData *)data
+          delegate:(id<IJSVGDelegate>)delegate;
 - (id)initWithFile:(NSString *)file;
 - (id)initWithFile:(NSString *)file
           delegate:(id<IJSVGDelegate>)delegate;

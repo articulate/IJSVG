@@ -111,6 +111,23 @@ static NSColor * _baseColor = nil;
     return self;
 }
 
+- (id)initWithData:(NSData *)data
+          delegate:(id<IJSVGDelegate>)delegate
+{
+#ifndef __clang_analyzer__
+    /* NOTE: this method does not invoke or take advantage of IJSVGCache. */
+    
+    if( ( self = [super init] ) != nil )
+    {
+        _delegate = delegate;
+        _group = [[IJSVGParser alloc] initWithData:data
+                                           encoding:NSUTF8StringEncoding
+                                           delegate:delegate];
+    }
+#endif
+    return self;
+}
+
 - (NSImage *)imageWithSize:(NSSize)aSize
 {
     NSImage * im = [[[NSImage alloc] initWithSize:aSize] autorelease];

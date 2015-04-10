@@ -45,15 +45,21 @@
              encoding:(NSStringEncoding)encoding
              delegate:(id<IJSVGParserDelegate>)delegate
 {
+    NSData *data = [[[NSData alloc] initWithContentsOfURL:aURL] autorelease];
+    return [self initWithData:data encoding:encoding delegate:delegate];
+}
+
+- (id)initWithData:(NSData *)data
+          encoding:(NSStringEncoding)encoding
+          delegate:(id<IJSVGParserDelegate>)delegate
+{
     if( ( self = [super init] ) != nil )
     {
         _delegate = delegate;
         
         // load the document / file, assume its UTF8
         NSError * error = nil;
-        NSString * str = [[[NSString alloc] initWithContentsOfURL:aURL
-                                                         encoding:encoding
-                                                            error:&error] autorelease];
+        NSString * str = [[[NSString alloc] initWithData:data encoding:encoding] autorelease];
         
         // use NSXMLDocument as its the easiest thing to do on OSX
         _document = [[NSXMLDocument alloc] initWithXMLString:str
