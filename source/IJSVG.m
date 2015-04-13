@@ -242,6 +242,10 @@ static NSColor * _baseColor = nil;
         // clip any drawing to the view port
         [[NSBezierPath bezierPathWithRect:viewPort] addClip];
         
+        
+        CGContextScaleCTM( ref, 1, -1 );
+        CGContextTranslateCTM( ref, 0, -viewPort.size.height);
+        
         CGContextTranslateCTM( ref, tX, tY );
         CGContextScaleCTM( ref, _scale, _scale );
         
