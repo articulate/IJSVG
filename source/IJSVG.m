@@ -514,6 +514,97 @@ static NSColor * _baseColor = nil;
     
 }
 
+#pragma mark Special Utilities
+
+struct SVGRGBAPixel { uint8_t r, g, b, a; };
+- (NSImage *)trimmedImageOfSVGRenderedAtSize:(NSSize)renderedSize
+                                 scaleFactor:(float)scaleFactor
+                                   trimWhite:(BOOL)trimWhite
+{
+    int width = renderedSize.width;
+    int height = renderedSize.height;
+    
+    float widthInset = floorf((scaleFactor - 1.0) * width);
+    float heightInset = floorf((scaleFactor - 1.0) * height);
+    widthInset -= (widthInset / 2.0);
+    heightInset -= (heightInset / 2.0);
+    
+    NSBitmapImageRep *imageRep = [[NSBitmapImageRep alloc]
+                                  initWithBitmapDataPlanes:NULL
+                                  pixelsWide:width
+                                  pixelsHigh:height
+                                  bitsPerSample:8
+                                  samplesPerPixel:4
+                                  hasAlpha:YES
+                                  isPlanar:NO
+                                  colorSpaceName:NSCalibratedRGBColorSpace
+                                  bytesPerRow:width * 4
+                                  bitsPerPixel:32];
+    
+    NSGraphicsContext *context = [NSGraphicsContext graphicsContextWithBitmapImageRep:imageRep];
+    [NSGraphicsContext saveGraphicsState];
+    [NSGraphicsContext setCurrentContext: context];
+    {
+        NSRect renderRect = NSMakeRect(0, 0, width, height);
+        renderRect = NSInsetRect(renderRect, -widthInset, -heightInset);
+        [self drawInRect:renderRect];
+    }
+    [context flushGraphics];
+    [NSGraphicsContext restoreGraphicsState];
+    
+    int top = INT_MAX;
+    int left = INT_MAX;
+    int bottom = 0;
+    int right = 0;
+    
+    struct SVGRGBAPixel *pixels = (struct SVGRGBAPixel *)[imageRep bitmapData];
+    
+    for(int y = 0; y < height; y++)
+    {
+        for(int x = 0; x < width; x++)
+        {
+            int index =(int)( x + (y * width));
+            if ((pixels[index].a == 0x0) ||
+                (trimWhite &&
+                 pixels[index].r == 0xff &&
+                 pixels[index].g == 0xff &&
+                 pixels[index].b == 0xff &&
+                 pixels[index].a == 0xff))
+            {
+                // Transparent pixel (or white + trimWhite == YES)
+            }
+            else
+            {
+                if (x < left)
+                    left = x;
+                
+                if (y < top)
+                    top = y;
+                
+                if (x > right)
+                    right = x;
+                
+                if (y > bottom)
+                    bottom = y;
+            }
+        }
+    }
+    
+    int newWidth = right - left;
+    int newHeight = bottom - top;
+    
+    /*  The pixel data for the bitmap image rep is fed to us bottom-up, so we fix the
+     calculated bottom/top values here: */
+    bottom = height - bottom;
+    top = bottom + newHeight;
+    
+    NSRect croppedRect = NSMakeRect(left, bottom, newWidth, newHeight);
+    CGImageRef croppedCGImg = CGImageCreateWithImageInRect(imageRep.CGImage, NSRectToCGRect(croppedRect));
+    
+    NSImage *result = [[NSImage alloc] initWithCGImage:croppedCGImg size:NSMakeSize(newWidth, newHeight)];
+    return result;
+}
+
 #pragma mark NSPasteboard
 
 - (NSArray *)writableTypesForPasteboard:(NSPasteboard *)pasteboard
