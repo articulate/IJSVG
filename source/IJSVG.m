@@ -595,8 +595,9 @@ struct SVGRGBAPixel { uint8_t r, g, b, a; };
     
     /*  The pixel data for the bitmap image rep is fed to us bottom-up, so we fix the
      calculated bottom/top values here: */
-    bottom = height - bottom;
-    top = bottom + newHeight;
+    int swap = top;
+    top = bottom;
+    bottom = swap;
     
     NSRect croppedRect = NSMakeRect(left, bottom, newWidth, newHeight);
     CGImageRef croppedCGImg = CGImageCreateWithImageInRect(imageRep.CGImage, NSRectToCGRect(croppedRect));
