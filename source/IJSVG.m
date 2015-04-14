@@ -231,6 +231,10 @@ static NSColor * _baseColor = nil;
         tX -= _group.viewBox.origin.x*_scale;
         tY -= _group.viewBox.origin.y*_scale;
         
+        // Respect the input rect origin
+        tX += rect.origin.x;
+        tY -= rect.origin.y;
+        
         // we also need to calculate the viewport so we can clip
         // the drawing if needed
         NSRect viewPort = NSZeroRect;
@@ -243,9 +247,11 @@ static NSColor * _baseColor = nil;
         [[NSBezierPath bezierPathWithRect:viewPort] addClip];
         
         
+        // Flip our Y coordinate:
         CGContextScaleCTM( ref, 1, -1 );
         CGContextTranslateCTM( ref, 0, -viewPort.size.height);
         
+        // Adjust for viewport origin
         CGContextTranslateCTM( ref, tX, tY );
         CGContextScaleCTM( ref, _scale, _scale );
         
