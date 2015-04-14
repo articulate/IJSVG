@@ -6,6 +6,7 @@
 //  Copyright (c) 2014 Curtis Hard. All rights reserved.
 //
 
+#import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
 
 typedef NS_ENUM( NSInteger, IJSVGPredefinedColor ) {
