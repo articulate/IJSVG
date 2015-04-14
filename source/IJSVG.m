@@ -231,10 +231,6 @@ static NSColor * _baseColor = nil;
         tX -= _group.viewBox.origin.x*_scale;
         tY -= _group.viewBox.origin.y*_scale;
         
-        // Respect the input rect origin
-        tX += rect.origin.x;
-        tY -= rect.origin.y;
-        
         // we also need to calculate the viewport so we can clip
         // the drawing if needed
         NSRect viewPort = NSZeroRect;
@@ -242,6 +238,11 @@ static NSColor * _baseColor = nil;
         viewPort.origin.y = tY;
         viewPort.size.width = _group.size.width*_scale;
         viewPort.size.height = _group.size.height*_scale;
+        
+        
+        // Respect the input rect origin
+        tX += rect.origin.x;
+        tY -= rect.origin.y;
         
         // clip any drawing to the view port
         [[NSBezierPath bezierPathWithRect:viewPort] addClip];
