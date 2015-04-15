@@ -54,6 +54,7 @@ handleForeignObject:(IJSVGForeignObject *)foreignObject
                size:(NSSize)size;
 - (void)drawInRect:(NSRect)rect;
 - (NSArray *)colors;
+- (NSSize)viewBoxSize;
 - (NSData *)PDFData;
 - (NSData *)PDFDataWithRect:(NSRect)rect;
 

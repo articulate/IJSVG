@@ -312,6 +312,11 @@ static NSColor * _baseColor = nil;
     _scale = MIN(dest.width/source.width,dest.height/source.height);
 }
 
+- (NSSize)viewBoxSize
+{
+    return _group.viewBox.size;
+}
+
 - (void)_prepClip:(IJSVGNode *)node
           context:(CGContextRef)context
         drawBlock:(dispatch_block_t)block
