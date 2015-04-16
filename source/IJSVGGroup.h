@@ -20,4 +20,7 @@
 - (NSArray *)children;
 - (void)purgeChildren;
 
+@property (nonatomic, readwrite) NSRect calculatedBoundingBox;
+@property (nonatomic, readwrite) NSRect calculatedVisualBoundingBox;
+
 @end

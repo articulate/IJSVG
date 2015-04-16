@@ -9,6 +9,8 @@
 #import "IJSVG.h"
 #import "IJSVGCache.h"
 
+static IJSVGRenderingDebugOptions _IJSVGrenderingDebugOptions = IJSVGRenderingDebugOptionsNone;
+
 @implementation IJSVG
 
 - (void)dealloc
@@ -247,10 +249,11 @@ static NSColor * _baseColor = nil;
         // clip any drawing to the view port
         [[NSBezierPath bezierPathWithRect:viewPort] addClip];
         
-        
+#if IJSVG_USES_FLIPPED_Y_RENDERING
         // Flip our Y coordinate:
         CGContextScaleCTM( ref, 1, -1 );
         CGContextTranslateCTM( ref, 0, -viewPort.size.height);
+#endif
         
         // Adjust for viewport origin
         CGContextTranslateCTM( ref, tX, tY );
@@ -513,13 +516,54 @@ static NSColor * _baseColor = nil;
             [path.path stroke];
         }
         
+        if (_IJSVGrenderingDebugOptions & IJSVGRenderingDebugOptionsOutlineClearFillNoStrokeShapes)
+        {
+            if ([path isInvisibleFillAndStroke])
+            {
+                NSBezierPath *pathCopy = path.path.copy;
+                const CGFloat dashArray[] = {15.0, 5.0};
+                [pathCopy setLineDash:dashArray count:2 phase:0];
+                [[NSColor redColor] setStroke];
+                pathCopy.lineWidth = 4;
+                [pathCopy stroke];
+            }
+        }
     }
     // restore the graphics state
     CGContextRestoreGState(ref);
     
 }
 
-#pragma mark Special Utilities
+#pragma mark - Bounds
+
+- (NSRect)boundingRectFlippedForYCoordinatesIfNeeded:(NSRect)boundingRect
+{
+#if IJSVG_USES_FLIPPED_Y_RENDERING
+    CGFloat newOriginY = self.viewBoxSize.height - (boundingRect.size.height + boundingRect.origin.y);
+    boundingRect.origin.y = newOriginY;
+#endif
+    
+    return boundingRect;
+}
+
+- (NSRect)visualBoundingBox
+{
+    return [self boundingRectFlippedForYCoordinatesIfNeeded:_group.calculatedVisualBoundingBox];
+}
+
+- (NSRect)boundingBoxIncludingInvisibles
+{
+    return [self boundingRectFlippedForYCoordinatesIfNeeded:_group.calculatedBoundingBox];
+}
+
+#pragma mark - Debug
+
++ (void)setRenderingDebugOptions:(IJSVGRenderingDebugOptions)renderingDebugOptions
+{
+    _IJSVGrenderingDebugOptions = renderingDebugOptions;
+}
+
+#pragma mark - Special Utilities
 
 struct SVGRGBAPixel { uint8_t r, g, b, a; };
 - (NSImage *)trimmedImageOfSVGRenderedAtSize:(NSSize)renderedSize

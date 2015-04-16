@@ -26,5 +26,6 @@
 - (void)close;
 - (NSPoint)currentPoint;
 - (void)overwritePath:(NSBezierPath *)aPath;
+- (BOOL)isInvisibleFillAndStroke;
 
 @end

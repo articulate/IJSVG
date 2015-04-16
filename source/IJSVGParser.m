@@ -376,6 +376,20 @@
           intoGroup:(IJSVGGroup*)parentGroup
                 def:(BOOL)flag
 {
+    __block NSRect boundingBox = NSZeroRect;
+    __block NSRect visualBoundingBox = NSZeroRect;
+    
+    void (^updateBoundingBoxesWithPath)(IJSVGPath *) = ^(IJSVGPath *path)
+    {
+        boundingBox = NSUnionRect(boundingBox, path.path.bounds);
+        
+        // For the visual bounding box, we explicitly ignore no-fill, no-stroke shapes:
+        if (![path isInvisibleFillAndStroke])
+        {
+            visualBoundingBox = NSUnionRect(visualBoundingBox, path.path.bounds);
+        }
+    };
+    
     for( NSXMLElement * element in [anElement children] )
     {
         NSString * subName = element.name;
@@ -416,6 +430,10 @@
                 // could be defined
                 if( flag || [element attributeForName:@"id"] != nil )
                     [parentGroup addDef:group];
+                
+                boundingBox = NSUnionRect(boundingBox, group.calculatedBoundingBox);
+                visualBoundingBox = NSUnionRect(visualBoundingBox, group.calculatedVisualBoundingBox);
+                
                 continue;
             }
                 
@@ -438,6 +456,9 @@
                 // could be defined
                 if( flag || [element attributeForName:@"id"] != nil )
                     [parentGroup addDef:path];
+                
+                updateBoundingBoxesWithPath(path);
+                
                 continue;
             }
                 
@@ -460,6 +481,9 @@
                 // could be defined
                 if( flag || [element attributeForName:@"id"] != nil )
                     [parentGroup addDef:path];
+                
+                updateBoundingBoxesWithPath(path);
+                
                 continue;
             }
                 
@@ -482,6 +506,9 @@
                 // could be defined
                 if( flag || [element attributeForName:@"id"] != nil )
                     [parentGroup addDef:path];
+                
+                updateBoundingBoxesWithPath(path);
+                
                 continue;
             }
                 
@@ -505,6 +532,9 @@
                 // could be defined
                 if( flag || [element attributeForName:@"id"] != nil )
                     [parentGroup addDef:path];
+                
+                updateBoundingBoxesWithPath(path);
+                
                 continue;
             }
                 
@@ -525,6 +555,9 @@
                 // could be defined
                 if( flag || [element attributeForName:@"id"] != nil )
                     [parentGroup addDef:path];
+                
+                updateBoundingBoxesWithPath(path);
+                
                 continue;
             }
                 
@@ -547,6 +580,9 @@
                 // could be defined
                 if( flag || [element attributeForName:@"id"] != nil)
                     [parentGroup addDef:path];
+                
+                updateBoundingBoxesWithPath(path);
+                
                 continue;
             }
                 
@@ -569,6 +605,9 @@
                 // could be defined
                 if( flag || [element attributeForName:@"id"] != nil )
                     [parentGroup addDef:path];
+                
+                updateBoundingBoxesWithPath(path);
+                
                 continue;
             }
                 
@@ -657,6 +696,9 @@
                 
         }
     }
+    
+    parentGroup.calculatedBoundingBox = boundingBox;
+    parentGroup.calculatedVisualBoundingBox = visualBoundingBox;
 }
 
 #pragma mark Parser stuff!

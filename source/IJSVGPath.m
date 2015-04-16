@@ -59,4 +59,13 @@
     path = subpath;
 }
 
+- (BOOL)isInvisibleFillAndStroke
+{
+    BOOL invisible = ((!self.fillColor || self.fillColor == [NSColor clearColor]) &&
+                      (!self.strokeColor || self.strokeColor == [NSColor clearColor]) &&
+                      (self.fillGradient == nil));
+    
+    return invisible;
+}
+
 @end

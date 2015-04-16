@@ -10,7 +10,15 @@
 #import "IJSVGParser.h"
 #import "IJSVGBezierPathAdditions.h"
 
+#define IJSVG_USES_FLIPPED_Y_RENDERING 1
+
 @class IJSVG;
+
+typedef NS_ENUM(uint32_t, IJSVGRenderingDebugOptions)
+{
+    IJSVGRenderingDebugOptionsNone = 0x0,
+    IJSVGRenderingDebugOptionsOutlineClearFillNoStrokeShapes = 0x1 << 0,
+};
 
 @protocol IJSVGDelegate <NSObject,IJSVGParserDelegate>
 
@@ -32,8 +40,6 @@ handleForeignObject:(IJSVGForeignObject *)foreignObject
     id<IJSVGDelegate> _delegate;
     
 }
-
-// General API
 
 + (NSColor *)baseColor;
 + (void)setBaseColor:(NSColor *)color;
@@ -57,6 +63,11 @@ handleForeignObject:(IJSVGForeignObject *)foreignObject
 - (NSSize)viewBoxSize;
 - (NSData *)PDFData;
 - (NSData *)PDFDataWithRect:(NSRect)rect;
+
+- (NSRect)visualBoundingBox;
+- (NSRect)boundingBoxIncludingInvisibles;
+
++ (void)setRenderingDebugOptions:(IJSVGRenderingDebugOptions)renderingDebugOptions;
 
 // Special Utilities
 
