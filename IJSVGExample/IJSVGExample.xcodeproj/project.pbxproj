@@ -577,9 +577,15 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+					"IJSVG_EXAMPLE_TESTS_NO_FLIPPED_Y=1",
+				);
 				INFOPLIST_FILE = IJSVGExample/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx10.11;
 			};
 			name = Debug;
 		};
@@ -591,6 +597,7 @@
 				INFOPLIST_FILE = IJSVGExample/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx10.11;
 			};
 			name = Release;
 		};
@@ -606,10 +613,12 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
 					"$(inherited)",
+					"IJSVG_EXAMPLE_TESTS_NO_FLIPPED_Y=1",
 				);
 				INFOPLIST_FILE = IJSVGExampleTests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/IJSVGExample.app/Contents/MacOS/IJSVGExample";
 			};
 			name = Debug;
@@ -626,6 +635,7 @@
 				INFOPLIST_FILE = IJSVGExampleTests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/IJSVGExample.app/Contents/MacOS/IJSVGExample";
 			};
 			name = Release;

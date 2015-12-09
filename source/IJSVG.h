@@ -10,7 +10,16 @@
 #import "IJSVGParser.h"
 #import "IJSVGBezierPathAdditions.h"
 
-#define IJSVG_USES_FLIPPED_Y_RENDERING 1
+/*  This is a baked-in value that determines whether the IJSVG
+    engine should use a flipped Y coordinate system. By default
+    this is now ON, however for the original IJSVG example app
+    and tests this should be disabled by default. */
+
+#ifdef IJSVG_EXAMPLE_TESTS_NO_FLIPPED_Y
+    #define IJSVG_USES_FLIPPED_Y_RENDERING 0
+#else
+    #define IJSVG_USES_FLIPPED_Y_RENDERING 1
+#endif
 
 @class IJSVG;
 
