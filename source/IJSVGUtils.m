@@ -190,7 +190,7 @@
     {
         [str appendFormat:@"%f ",param[i]];
     }
-    NSLog(@"%@",str);
+    DLog(@"%@",str);
 }
 
 + (CGFloat)floatValue:(NSString *)string

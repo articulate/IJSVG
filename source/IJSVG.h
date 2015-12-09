@@ -69,13 +69,4 @@ handleForeignObject:(IJSVGForeignObject *)foreignObject
 
 + (void)setRenderingDebugOptions:(IJSVGRenderingDebugOptions)renderingDebugOptions;
 
-// Special Utilities
-
-/** This method renders the SVG into a bitmap at the size specified by `renderedSize`. The SVG is drawn centered
-    and scaled by `scaleFactor`. The resulting bitmap is then trimmed / cropped of transparent pixels (and white pixels
-    if `trimWhite` is YES. */
-- (NSImage *)trimmedImageOfSVGRenderedAtSize:(NSSize)renderedSize
-                                 scaleFactor:(float)scaleFactor
-                                   trimWhite:(BOOL)trimWhite;
-
 @end
