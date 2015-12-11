@@ -23,6 +23,7 @@
 
 + (void)runWithParams:(CGFloat *)params
            paramCount:(NSInteger)count
+              command:(IJSVGCommand *)currentCommand
       previousCommand:(IJSVGCommand *)command
                  type:(IJSVGCommandType)type
                  path:(IJSVGPath *)path
@@ -33,9 +34,6 @@
         return;
     }
     [[path currentSubpath] relativeLineToPoint:NSMakePoint( 0.f, params[0])];
-//    NSPoint point = NSMakePoint( [path currentSubpath].currentPoint.x,
-//                                [path currentSubpath].currentPoint.y + );
-//    [[path currentSubpath] lineToPoint:point];
 }
 
 @end

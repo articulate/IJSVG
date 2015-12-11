@@ -11,63 +11,100 @@
 @implementation IJSVGParser
 
 @synthesize viewBox;
+@synthesize proposedViewSize;
 
 + (IJSVGParser *)groupForFileURL:(NSURL *)aURL
 {
     return [[self class] groupForFileURL:aURL
+                                   error:nil
                                 delegate:nil];
 }
 
 + (IJSVGParser *)groupForFileURL:(NSURL *)aURL
                         delegate:(id<IJSVGParserDelegate>)delegate
 {
+    return [[self class] groupForFileURL:aURL
+                                   error:nil
+                                delegate:delegate];
+}
+
++ (IJSVGParser *)groupForFileURL:(NSURL *)aURL
+                           error:(NSError **)error
+                        delegate:(id<IJSVGParserDelegate>)delegate
+{
     return [[[[self class] alloc] initWithFileURL:aURL
+                                            error:error
                                          delegate:delegate] autorelease];
 }
 
 - (void)dealloc
 {
+    [_glyphs release], _glyphs = nil;
     [super dealloc];
 }
 
 - (id)initWithFileURL:(NSURL *)aURL
-             delegate:(id<IJSVGParserDelegate>)delegate
-{
-    if( ( self = [self initWithFileURL:aURL
-                              encoding:NSUTF8StringEncoding
-                              delegate:delegate] ) != nil )
-    {
-    }
-    return self;
-}
-
-- (id)initWithFileURL:(NSURL *)aURL
-             encoding:(NSStringEncoding)encoding
+                error:(NSError **)error
              delegate:(id<IJSVGParserDelegate>)delegate
 {
     NSData *data = [[[NSData alloc] initWithContentsOfURL:aURL] autorelease];
-    return [self initWithData:data encoding:encoding delegate:delegate];
+    return [self initWithData:data error:error delegate:delegate];
 }
 
 - (id)initWithData:(NSData *)data
-          encoding:(NSStringEncoding)encoding
+             error:(NSError **)error
           delegate:(id<IJSVGParserDelegate>)delegate
 {
     if( ( self = [super init] ) != nil )
     {
         _delegate = delegate;
+        _glyphs = [[NSMutableArray alloc] init];
         
         // load the document / file, assume its UTF8
-        NSError * error = nil;
-        NSString * str = [[[NSString alloc] initWithData:data encoding:encoding] autorelease];
+        
+        NSError * anError = nil;
+        NSString * str = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+        
+        // error grabbing contents from the file :(
+        if( anError != nil )
+            return [self _handleErrorWithCode:IJSVGErrorReadingFile
+                                        error:error];
         
         // use NSXMLDocument as its the easiest thing to do on OSX
-        _document = [[NSXMLDocument alloc] initWithXMLString:str
-                                                     options:0
-                                                       error:&error];
+        anError = nil;
+        @try {
+            _document = [[NSXMLDocument alloc] initWithXMLString:str
+                                                         options:0
+                                                           error:&anError];
+        }
+        @catch (NSException *exception) {
+        }
         
-        // where the fun begin...
-        [self _parse];
+        // error parsing the XML document
+        if( anError != nil )
+            return [self _handleErrorWithCode:IJSVGErrorParsingFile
+                                        error:error];
+        
+        // attempt to parse the file
+        anError = nil;
+        @try {
+            [self _parse];
+        }
+        @catch (NSException *exception) {
+            return [self _handleErrorWithCode:IJSVGErrorParsingSVG
+                                        error:error];
+        }
+        
+        
+        // check the actual parsed SVG
+        anError = nil;
+        if( ![self _validateParse:&anError] )
+        {
+            *error = anError;
+            [_document release], _document = nil;
+            [self release], self = nil;
+            return nil;
+        }
         
         // we have actually finished with the document at this point
         // so just get rid of it
@@ -75,6 +112,37 @@
         
     }
     return self;
+}
+
+- (void *)_handleErrorWithCode:(NSUInteger)code
+                         error:(NSError **)error
+{
+    if( error )
+        *error = [[[NSError alloc] initWithDomain:IJSVGErrorDomain
+                                             code:code
+                                         userInfo:nil] autorelease];
+    [_document release], _document = nil;
+    [self release], self = nil;
+    return nil;
+}
+
+- (BOOL)_validateParse:(NSError **)error
+{
+    // check is font
+    if( self.isFont )
+        return YES;
+    
+    // check the viewbox
+    if( NSEqualRects( self.viewBox, NSZeroRect ) ||
+       self.size.width == 0 || self.size.height == 0 )
+    {
+        if( error != NULL )
+            *error = [[[NSError alloc] initWithDomain:IJSVGErrorDomain
+                                                 code:IJSVGErrorInvalidViewBox
+                                             userInfo:nil] autorelease];
+        return NO;
+    }
+    return YES;
 }
 
 - (NSSize)size
@@ -101,8 +169,26 @@
         // there is no view box so find the width and height
         CGFloat w = [[[svgElement attributeForName:@"width"] stringValue] floatValue];
         CGFloat h = [[[svgElement attributeForName:@"height"] stringValue] floatValue];
+        if( h == 0.f && w != 0.f )
+            h = w;
+        else if( w == 0.f && h != 0.f )
+            w = h;
         viewBox = NSMakeRect( 0.f, 0.f, w, h );
     }
+    
+    // parse the width and height....
+    CGFloat w = [[[svgElement attributeForName:@"width"] stringValue] floatValue];
+    CGFloat h = [[[svgElement attributeForName:@"height"] stringValue] floatValue];
+    if( w == 0.f && h == 0.f )
+    {
+        w = viewBox.size.width;
+        h = viewBox.size.height;
+    } else if( w == 0 && h != 0.f ) {
+        w = viewBox.size.width;
+    } else if( h == 0 && w != 0.f ) {
+        h = viewBox.size.height;
+    }
+    proposedViewSize = NSMakeSize( w, h );
     
     // find foreign objects...
     NSXMLElement * switchElement = nil;
@@ -160,6 +246,14 @@
                                     node:(IJSVGNode *)node
 {
     
+    // unicode
+    NSXMLNode * unicodeAttribute = [element attributeForName:@"unicode"];
+    if( unicodeAttribute != nil )
+    {
+        NSString * str = [unicodeAttribute stringValue];
+        node.unicode = [NSString stringWithFormat:@"%04x",[str characterAtIndex:0]];
+    }
+    
     // x and y
     NSXMLNode * xAttribute = [element attributeForName:@"x"];
     if( xAttribute != nil )
@@ -169,6 +263,26 @@
     if( yAttribute )
         node.y = [[yAttribute stringValue] floatValue];
     
+    // width
+    NSXMLNode * widthAttribute = [element attributeForName:@"width"];
+    if( widthAttribute != nil )
+    {
+        if( [[widthAttribute stringValue] isEqualToString:@"100%"] )
+            node.width = self.viewBox.size.width;
+        else
+            node.width = [IJSVGUtils floatValue:[widthAttribute stringValue]];
+    }
+    
+    // height
+    NSXMLNode * heightAttribute = [element attributeForName:@"height"];
+    if( heightAttribute != nil )
+    {
+        if( [[heightAttribute stringValue] isEqualToString:@"100%"] )
+            node.height = self.viewBox.size.height;
+        else
+            node.height = [IJSVGUtils floatValue:[heightAttribute stringValue]];
+    }
+    
     // any clippath?
     NSXMLNode * clipPathAttribute = [element attributeForName:@"clip-path"];
     if( clipPathAttribute != nil )
@@ -177,6 +291,37 @@
         if( clipID )
             node.clipPath = (IJSVGGroup *)[node defForID:clipID];
     }
+    
+    // any mask?
+    NSXMLNode * maskAttribute = [element attributeForName:@"mask"];
+    if( maskAttribute != nil )
+    {
+        NSString * maskID = [IJSVGUtils defURL:[maskAttribute stringValue]];
+        if( maskID )
+            node.clipPath = (IJSVGGroup *)[node defForID:maskID];
+    }
+    
+    // ID
+    NSXMLNode * idAttribute = [element attributeForName:@"id"];
+    if( idAttribute != nil )
+        node.identifier = [idAttribute stringValue];
+    
+    // transforms
+    NSXMLNode * transformAttribute = [element attributeForName:@"transform"];
+    if( transformAttribute != nil )
+    {
+        NSMutableArray * tran = [[[NSMutableArray alloc] init] autorelease];
+        [tran addObjectsFromArray:[IJSVGTransform transformsForString:[transformAttribute stringValue]]];
+        if( node.transforms != nil )
+            [tran addObjectsFromArray:node.transforms];
+        node.transforms = tran;
+    }
+    
+    if( node.type == IJSVGNodeTypeMask )
+        return;
+    
+    
+#pragma mark Styles
     
     // any line cap style?
     NSXMLNode * lineCapAttribute = [element attributeForName:@"stroke-linecap"];
@@ -234,9 +379,11 @@
     if( fillAttribute != nil )
     {
         NSString * defID = [IJSVGUtils defURL:[fillAttribute stringValue]];
-        if( defID != nil )
-            node.fillGradient = (IJSVGGradient *)[node defForID:defID];
-        else {
+        if( defID != nil ) {
+            IJSVGGradient * grad = (IJSVGGradient *)[node defForID:defID];
+            node.fillGradient = grad;
+            grad.transforms = grad.transforms;
+        } else {
             // change the fill color over if its allowed
             node.fillColor = [IJSVGColor colorFromString:[fillAttribute stringValue]];
             if( node.fillOpacity != 1.f )
@@ -250,17 +397,13 @@
     if( strokeWidthAttribute != nil )
         node.strokeWidth = [IJSVGUtils floatValue:[strokeWidthAttribute stringValue]];
     
-    // ID
-    NSXMLNode * idAttribute = [element attributeForName:@"id"];
-    if( idAttribute != nil )
-        node.identifier = [idAttribute stringValue];
     
-    // transforms
-    NSXMLNode * transformAttribute = [element attributeForName:@"transform"];
-    if( transformAttribute != nil )
+    // gradient transforms
+    NSXMLNode * gradTransformAttribute = [element attributeForName:@"gradientTransform"];
+    if( gradTransformAttribute != nil )
     {
         NSMutableArray * tran = [[[NSMutableArray alloc] init] autorelease];
-        [tran addObjectsFromArray:[IJSVGTransform transformsForString:[transformAttribute stringValue]]];
+        [tran addObjectsFromArray:[IJSVGTransform transformsForString:[gradTransformAttribute stringValue]]];
         if( node.transforms != nil )
             [tran addObjectsFromArray:node.transforms];
         node.transforms = tran;
@@ -274,25 +417,12 @@
     } else
         node.windingRule = IJSVGWindingRuleInherit;
     
-    // width
-    NSXMLNode * widthAttribute = [element attributeForName:@"width"];
-    if( widthAttribute != nil )
-    {
-        if( [[widthAttribute stringValue] isEqualToString:@"100%"] )
-            node.width = self.viewBox.size.width;
-        else
-            node.width = [IJSVGUtils floatValue:[widthAttribute stringValue]];
-    }
+    // display
+    NSXMLNode * displayAttribute = [element attributeForName:@"display"];
+    if( [[[displayAttribute stringValue] lowercaseString] isEqualToString:@"none"] )
+        node.shouldRender = NO;
     
-    // height
-    NSXMLNode * heightAttribute = [element attributeForName:@"height"];
-    if( heightAttribute != nil )
-    {
-        if( [[heightAttribute stringValue] isEqualToString:@"100%"] )
-            node.height = self.viewBox.size.height;
-        else
-            node.height = [IJSVGUtils floatValue:[heightAttribute stringValue]];
-    }
+#pragma mark style sheets
     
     // now we need to work out if there is any style...apparently this is a thing now,
     // people use the style attribute... -_-
@@ -302,6 +432,14 @@
     {
         IJSVGStyle * style = [IJSVGStyle parseStyleString:[styleNode stringValue]];
         
+        // actual display
+        NSString * display = nil;
+        if( ( display = [style property:@"display"] ) != nil )
+        {
+            if( [display isEqualToString:@"none"] )
+                node.shouldRender = NO;
+        }
+        
         // fill color
         NSColor * fill = nil;
         if( ( fill = [style property:@"fill"] ) != nil )
@@ -309,8 +447,11 @@
             if( [fill isKindOfClass:[NSString class]] )
             {
                 NSString * defID = [IJSVGUtils defURL:(NSString *)fill];
-                if( defID != nil )
-                    node.fillGradient = (IJSVGGradient *)[node defForID:defID];
+                if( defID != nil ) {
+                    IJSVGGradient * grad = (IJSVGGradient *)[node defForID:defID];
+                    node.fillGradient = grad;
+                    node.transforms = grad.transforms;
+                }
             } else {
                 if( [IJSVGColor computeColor:fill] != nil )
                     node.fillColor = fill;
@@ -372,6 +513,21 @@
     
 }
 
+- (BOOL)isFont
+{
+    return [_glyphs count] != 0;
+}
+
+- (NSArray *)glyphs
+{
+    return _glyphs;
+}
+
+- (void)addGlyph:(IJSVGNode *)glyph
+{
+    [_glyphs addObject:glyph];
+}
+
 - (void)_parseBlock:(NSXMLElement *)anElement
           intoGroup:(IJSVGGroup*)parentGroup
                 def:(BOOL)flag
@@ -408,7 +564,38 @@
                 continue;
             }
                 
+                // glyph
+            case IJSVGNodeTypeGlyph: {
+                
+                // no path data
+                if( [element attributeForName:@"d"] == nil || [[element attributeForName:@"d"] stringValue].length == 0 )
+                    continue;
+                
+                IJSVGPath * path = [[[IJSVGPath alloc] init] autorelease];
+                path.type = aType;
+                path.name = subName;
+                path.parentNode = parentGroup;
+                
+                // find common attributes
+                [self _parseElementForCommonAttributes:element
+                                                  node:path];
+                
+                // pass the commands for it
+                [self _parsePathCommandData:[[element attributeForName:@"d"] stringValue]
+                                   intoPath:path];
+                
+                // check the size...
+                if( NSIsEmptyRect([path path].controlPointBounds) )
+                    continue;
+                
+                // add the glyph
+                [self addGlyph:path];
+                continue;
+            }
+                
                 // group
+            case IJSVGNodeTypeFont:
+            case IJSVGNodeTypeMask:
             case IJSVGNodeTypeGroup: {
                 IJSVGGroup * group = [[[IJSVGGroup alloc] init] autorelease];
                 group.type = aType;
@@ -651,22 +838,84 @@
                 // linear gradient
             case IJSVGNodeTypeLinearGradient: {
                 
+                NSString * xlink = [[element attributeForName:@"xlink:href"] stringValue];
+                NSString * xlinkID = [xlink substringFromIndex:1];
+                IJSVGNode * node = [parentGroup defForID:xlinkID];
+                if( node != nil )
+                {
+                    // we are a clone
+                    IJSVGLinearGradient * grad = [[[IJSVGLinearGradient alloc] init] autorelease];
+                    grad.type = aType;
+                    [grad applyPropertiesFromNode:node];
+                    
+                    grad.gradient = [[[(IJSVGGradient *)node gradient] copy] autorelease];
+                    CGPoint startPoint, endPoint;
+                    [IJSVGLinearGradient parseGradient:element
+                                              gradient:grad
+                                            startPoint:&startPoint
+                                              endPoint:&endPoint];
+                    [self _parseElementForCommonAttributes:element
+                                                      node:grad];
+                    grad.startPoint = startPoint;
+                    grad.endPoint = endPoint;
+                    [parentGroup addDef:grad];
+                    continue;
+                }
+                
                 IJSVGLinearGradient * gradient = [[[IJSVGLinearGradient alloc] init] autorelease];
                 gradient.type = aType;
+                
+                CGPoint startPoint, endPoint;
                 gradient.gradient = [IJSVGLinearGradient parseGradient:element
-                                                              gradient:gradient];
+                                                              gradient:gradient
+                                                            startPoint:&startPoint
+                                                              endPoint:&endPoint];
+                
                 [self _parseElementForCommonAttributes:element
                                                   node:gradient];
+                gradient.startPoint = startPoint;
+                gradient.endPoint = endPoint;
                 [parentGroup addDef:gradient];
                 continue;
             }
                 
                 // radial gradient
             case IJSVGNodeTypeRadialGradient: {
+                
+                NSString * xlink = [[element attributeForName:@"xlink:href"] stringValue];
+                NSString * xlinkID = [xlink substringFromIndex:1];
+                IJSVGNode * node = [parentGroup defForID:xlinkID];
+                if( node != nil )
+                {
+                    // we are a clone
+                    IJSVGRadialGradient * grad = [[[IJSVGRadialGradient alloc] init] autorelease];
+                    grad.type = aType;
+                    [grad applyPropertiesFromNode:node];
+                    grad.gradient = [[[(IJSVGGradient *)node gradient] copy] autorelease];
+                    
+                    CGPoint startPoint, endPoint;
+                    [IJSVGRadialGradient parseGradient:element
+                                              gradient:grad
+                                            startPoint:&startPoint
+                                              endPoint:&endPoint];
+                    [self _parseElementForCommonAttributes:element
+                                                      node:grad];
+                    grad.startPoint = startPoint;
+                    grad.endPoint = endPoint;
+                    [parentGroup addDef:grad];
+                    continue;
+                }
+                
                 IJSVGRadialGradient * gradient = [[[IJSVGRadialGradient alloc] init] autorelease];
                 gradient.type = aType;
+                
+                CGPoint startPoint, endPoint;
                 gradient.gradient = [IJSVGRadialGradient parseGradient:element
-                                                              gradient:gradient];
+                                                              gradient:gradient
+                                                            startPoint:&startPoint
+                                                              endPoint:&endPoint];
+                gradient.startPoint = startPoint;
+                gradient.endPoint = endPoint;
                 [self _parseElementForCommonAttributes:element
                                                   node:gradient];
                 [parentGroup addDef:gradient];
@@ -701,47 +950,78 @@
     parentGroup.calculatedVisualBoundingBox = visualBoundingBox;
 }
 
+static NSCharacterSet * _commandCharSet = nil;
+
++ (NSCharacterSet *)_commandCharSet
+{
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        _commandCharSet = [[NSCharacterSet characterSetWithCharactersInString:@"MmZzLlHhVvCcSsQqTtAa"] retain];
+    });
+    return _commandCharSet;
+}
+
 #pragma mark Parser stuff!
 
 - (void)_parsePathCommandData:(NSString *)command
                      intoPath:(IJSVGPath *)path
 {
     // invalid command
+    
     if( command == nil || command.length == 0 )
         return;
-    NSRegularExpression * exp = [IJSVGUtils commandNameRegex];
-    __block NSString * previousCommand = nil;
-    __block NSTextCheckingResult * previousMatch = nil;
     
-    [exp enumerateMatchesInString:command
-                          options:0
-                            range:NSMakeRange( 0, command.length )
-                       usingBlock:^(NSTextCheckingResult *result, NSMatchingFlags flags, BOOL *stop)
-     {
-         @autoreleasepool {
-             if( previousMatch != nil )
-             {
-                 NSUInteger length = result.range.location - previousMatch.range.location;
-                 NSString * commandString = [command substringWithRange:NSMakeRange(previousMatch.range.location,length)];
-                 [self _parseCommandString:commandString
-                           previousCommand:previousCommand
-                                  intoPath:path];
-                 [previousCommand release], previousCommand = nil;
-                 previousCommand = [commandString copy];
-                 [previousMatch release], previousMatch = nil;
-             }
-         }
-         previousMatch = [result retain];
-     }];
+    NSCharacterSet * set = [[self class] _commandCharSet];
+    NSUInteger len = [command length];
     
-    NSRange range = NSMakeRange(previousMatch.range.location, command.length-previousMatch.range.location);
-    [self _parseCommandString:[command substringWithRange:range]
-              previousCommand:previousCommand
-                     intoPath:path];
+    // allocate memory for the string buffer for reading
+    unichar * buffer = (unichar *)calloc( len+1, sizeof(unichar));
+    [command getCharacters:buffer
+                     range:NSMakeRange(0, len)];
     
-    // memory clean up
-    [previousMatch release], previousMatch = nil;
-    [previousCommand release], previousCommand = nil;
+    NSString * currentCommandString = nil;
+    NSString * previousCommand = nil;
+    
+    int defaultBufferSize = 200;
+    int currentBufferSize = 0;
+    int currentSize = defaultBufferSize;
+    
+    unichar * commandBuffer = NULL;
+    if( len != 0 )
+        commandBuffer = (unichar *)calloc(defaultBufferSize,sizeof(unichar));
+    
+    for( int i = 0; i < len; i++ )
+    {
+        unichar currentChar = buffer[i];
+        unichar nextChar = buffer[i+1];
+        BOOL atEnd = i == len-1;
+        BOOL isStartCommand = [set characterIsMember:nextChar];
+        if( ( currentBufferSize + 1 ) == currentSize )
+        {
+            currentSize += defaultBufferSize;
+            commandBuffer = (unichar *)realloc( commandBuffer, sizeof(unichar)*currentSize);
+        }
+        commandBuffer[currentBufferSize++] = currentChar;
+        if( isStartCommand || atEnd )
+        {
+            currentCommandString = [NSString stringWithCharacters:commandBuffer
+                                                           length:currentBufferSize];
+            [self _parseCommandString:currentCommandString
+                      previousCommand:previousCommand
+                             intoPath:path];
+            previousCommand = [[currentCommandString copy] autorelease];
+            free(commandBuffer);
+            commandBuffer = NULL;
+            if( !atEnd ) {
+                currentBufferSize = 0;
+                currentSize = defaultBufferSize;
+                commandBuffer = (unichar *)calloc(defaultBufferSize,sizeof(unichar));
+            }
+        }
+    }
+    
+    // free the buffer
+    free(buffer);
 }
 
 - (void)_parseCommandString:(NSString *)string
@@ -765,6 +1045,7 @@
         {
             [subCommand.commandClass runWithParams:subCommand.parameters
                                         paramCount:subCommand.parameterCount
+                                           command:subCommand
                                    previousCommand:preCommand
                                               type:subCommand.type
                                               path:path];
@@ -782,7 +1063,12 @@
     CGFloat y1 = [[[element attributeForName:@"y1"] stringValue] floatValue];
     CGFloat x2 = [[[element attributeForName:@"x2"] stringValue] floatValue];
     CGFloat y2 = [[[element attributeForName:@"y2"] stringValue] floatValue];
-    NSString * command = [NSString stringWithFormat:@"M%f %fL%f %f",x1,y1,x2,y2];
+    
+    // use sprintf as its quicker then stringWithFormat...
+    char buffer[50];
+    sprintf( buffer, "M%.2f %.2fL%.2f %.2f",x1,y1,x2,y2);
+    NSString * command = [NSString stringWithCString:buffer
+                                            encoding:NSUTF8StringEncoding];
     [self _parsePathCommandData:command
                        intoPath:path];
 }
@@ -841,10 +1127,10 @@
     
     // construct a command
     NSMutableString * str = [[[NSMutableString alloc] init] autorelease];
-    [str appendFormat:@"M%f %f L",params[0],params[1]];
+    [str appendFormat:@"M%f,%f L",params[0],params[1]];
     for( NSInteger i = 2; i < count; i+=2 )
     {
-        [str appendFormat:@"%f %f ",params[i],params[i+1]];
+        [str appendFormat:@"%f,%f ",params[i],params[i+1]];
     }
     if( closePath )
         [str appendString:@"z"];
@@ -868,6 +1154,8 @@
     
     CGFloat rX = [[[element attributeForName:@"rx"] stringValue] floatValue];
     CGFloat rY = [[[element attributeForName:@"ry"] stringValue] floatValue];
+    if( [element attributeForName:@"ry"] == nil )
+        rY = rX;
     
     [element removeAttributeForName:@"x"];
     [element removeAttributeForName:@"y"];

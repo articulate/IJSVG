@@ -10,50 +10,33 @@
 
 @implementation IJSVGUtils
 
-#define FLOAT_EXP @"[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?"
+CGFloat angle( CGPoint a, CGPoint b ) {
+    return [IJSVGUtils angleBetweenPointA:a
+                                   pointb:b];
+}
+
+CGFloat ratio( CGPoint a, CGPoint b ) {
+    return (a.x * b.x + a.y * b.y) / (magnitude(a) * magnitude(b));
+}
+
+CGFloat magnitude(CGPoint point)
+{
+    return sqrtf(powf(point.x, 2) + powf(point.y, 2));
+}
+
+CGFloat radians_to_degrees(CGFloat radians)
+{
+    return ((radians) * (180.0 / M_PI));
+}
+
+CGFloat degrees_to_radians( CGFloat degrees )
+{
+    return ( ( degrees ) / 180.0 * M_PI );
+}
 
 + (IJSVGCommandType)typeForCommandString:(NSString *)string
 {
     return [string isEqualToString:[string uppercaseString]] ? IJSVGCommandTypeAbsolute : IJSVGCommandTypeRelative;
-}
-
-+ (NSRegularExpression *)commandNameRegex
-{
-    static NSRegularExpression *_commandRegex;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        _commandRegex = [[NSRegularExpression alloc] initWithPattern:@"[MmZzLlHhVvCcSsQqTtAa]{1}"
-                                                             options:0
-                                                               error:nil];
-    });
-    return _commandRegex;
-}
-
-+ (NSRegularExpression *)commandRegex
-{
-    static NSRegularExpression * _reg = nil;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        _reg = [[NSRegularExpression alloc] initWithPattern:FLOAT_EXP
-                                                    options:0
-                                                      error:nil];
-    });
-    return _reg;
-}
-
-+ (NSString *)cleanCommandString:(NSString *)string
-{
-    static NSRegularExpression * _reg = nil;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        _reg = [[NSRegularExpression alloc] initWithPattern:@"e\\-[0-9]+"
-                                                    options:0
-                                                      error:nil];
-    });
-    return [_reg stringByReplacingMatchesInString:string
-                                          options:0
-                                            range:NSMakeRange( 0, string.length )
-                                     withTemplate:@""];
 }
 
 + (NSString *)defURL:(NSString *)string
@@ -112,18 +95,6 @@
     return IJSVGLineCapStyleButt;
 }
 
-+ (NSRegularExpression *)viewBoxRegex
-{
-    static NSRegularExpression * _reg = nil;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        _reg = [[NSRegularExpression alloc] initWithPattern:FLOAT_EXP
-                                                    options:0
-                                                      error:nil];
-    });
-    return _reg;
-}
-
 + (CGFloat *)commandParameters:(NSString *)command
                          count:(NSInteger *)count
 {
@@ -134,47 +105,48 @@
         *count = 1;
         return ret;
     }
-    NSRegularExpression * exp = [[self class] commandRegex];
-    NSArray * matches = [exp matchesInString:command
-                                     options:0
-                                       range:NSMakeRange( 0, command.length)];
-    CGFloat * ret = (CGFloat *)malloc(matches.count*sizeof(CGFloat));
-    NSDictionary * dict = [NSDictionary dictionaryWithObject:@"."
-                                                      forKey:NSLocaleDecimalSeparator];
-    for( NSInteger i = 0; i < matches.count; i++ )
+    return [[self class] scanFloatsFromString:command
+                                         size:count];
+}
+
++ (CGFloat *)scanFloatsFromString:(NSString *)string
+                             size:(NSInteger *)length
+{
+    NSInteger defSize = 1000;
+    NSInteger size = defSize;
+    CGFloat * floats = (CGFloat *)malloc(sizeof(CGFloat)*size);
+    NSScanner * scanner = [[[NSScanner alloc] initWithString:string] autorelease];
+    float num = 0;
+    NSInteger i = 0;
+    while( [scanner isAtEnd] == NO )
     {
-        NSTextCheckingResult * match = [matches objectAtIndex:i];
-        NSString * paramString = [command substringWithRange:match.range];
-        NSDecimalNumber * decimal = nil;
-        if( [paramString rangeOfString:@"."].location != NSNotFound )
-            decimal = [NSDecimalNumber decimalNumberWithString:paramString
-                                                        locale:dict];
-        else
-            decimal = [NSDecimalNumber decimalNumberWithString:paramString];
-        ret[i] = (CGFloat)[decimal floatValue];
-        *count += 1;
+        if( [scanner scanFloat:&num] )
+        {
+            if( (i+1) == size )
+            {
+                // if we reach here, we need to reallocate memory...serious amount of floats..
+                // something going on weird in the SVG? - possible...
+                size += defSize;
+                floats = (CGFloat *)realloc( floats, sizeof(CGFloat)*size);
+            }
+            floats[i++] = num;
+            continue;
+        }
+        [scanner setScanLocation:scanner.scanLocation+1];
     }
-    return ret;
+    *length = i;
+    return floats;
 }
 
 + (CGFloat *)parseViewBox:(NSString *)string
 {
-    NSRegularExpression * exp = [[self class] viewBoxRegex];
-    NSArray * matches = [exp matchesInString:string
-                                     options:0
-                                       range:NSMakeRange( 0, string.length)];
-    CGFloat * ret = (CGFloat *)malloc(matches.count*sizeof(CGFloat));
-    for( NSInteger i = 0; i < matches.count; i++ )
-    {
-        NSTextCheckingResult * match = [matches objectAtIndex:i];
-        NSString * paramString = [string substringWithRange:match.range];
-        ret[i] = (CGFloat)[paramString floatValue];
-    }
-    return ret;
+    NSInteger size = 0;
+    return [[self class] scanFloatsFromString:string
+                                         size:&size];
 }
 
 + (CGFloat)floatValue:(NSString *)string
-     fallBackForPercent:(CGFloat)fallBack
+   fallBackForPercent:(CGFloat)fallBack
 {
     CGFloat val = [string floatValue];
     if( [string rangeOfString:@"%"].location != NSNotFound )
@@ -200,13 +172,10 @@
     return [string floatValue];
 }
 
-+ (CGFloat)angleBetweenPointA:(NSPoint)startingPoint
-                       pointb:(NSPoint)endingPoint
++ (CGFloat)angleBetweenPointA:(NSPoint)point1
+                       pointb:(NSPoint)point2
 {
-    CGPoint originPoint = CGPointMake(endingPoint.x - startingPoint.x, endingPoint.y - startingPoint.y);
-    CGFloat bearingRadians = atan2f(originPoint.y, originPoint.x);
-    CGFloat bearingDegrees = bearingRadians * (180.0 / M_PI);
-    return (bearingDegrees > 0.0 ? bearingDegrees : (360.0 + bearingDegrees));
+    return (point1.x * point2.y < point1.y * point2.x ? -1 : 1) * acosf(ratio(point1, point2));
 }
 
 @end

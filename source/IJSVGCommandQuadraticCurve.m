@@ -7,6 +7,7 @@
 //
 
 #import "IJSVGCommandQuadraticCurve.h"
+#import "IJSVGUtils.h"
 
 @implementation IJSVGCommandQuadraticCurve
 
@@ -23,6 +24,7 @@
 
 + (void)runWithParams:(CGFloat *)params
            paramCount:(NSInteger)count
+              command:(IJSVGCommand *)currentCommand
       previousCommand:(IJSVGCommand *)command
                  type:(IJSVGCommandType)type
                  path:(IJSVGPath *)path
@@ -34,7 +36,7 @@
         return;
     }
     [[path currentSubpath] addQuadCurveToPoint:NSMakePoint([path currentSubpath].currentPoint.x + params[2], [path currentSubpath].currentPoint.y + params[3])
-                      controlPoint:NSMakePoint([path currentSubpath].currentPoint.x + params[0], [path currentSubpath].currentPoint.y + params[1])];
+                                  controlPoint:NSMakePoint([path currentSubpath].currentPoint.x + params[0], [path currentSubpath].currentPoint.y + params[1])];
 }
 
 @end

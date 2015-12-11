@@ -13,10 +13,12 @@
 
 @synthesize path;
 @synthesize subpath;
+@synthesize lastControlPoint;
 
 - (void)dealloc
 {
-    [subpath release], subpath = nil;
+    if(subpath!=nil)
+        [subpath release], subpath = nil;
     [super dealloc];
 }
 

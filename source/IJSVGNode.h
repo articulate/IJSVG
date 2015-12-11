@@ -27,7 +27,10 @@ typedef NS_OPTIONS( NSInteger, IJSVGNodeType ) {
     IJSVGNodeTypeLinearGradient,
     IJSVGNodeTypeRadialGradient,
     IJSVGNodeTypeClipPath,
-    IJSVGNodeTypeNotFound
+    IJSVGNodeTypeFont,
+    IJSVGNodeTypeGlyph,
+    IJSVGNodeTypeMask,
+    IJSVGNodeTypeNotFound,
 };
 
 typedef NS_OPTIONS( NSInteger, IJSVGWindingRule ) {
@@ -56,6 +59,7 @@ static CGFloat IJSVGInheritedFloatValue = -99.9999991;
     
     IJSVGNodeType type;
     NSString * name;
+    NSString * unicode;
     
     CGFloat x;
     CGFloat y;
@@ -65,6 +69,7 @@ static CGFloat IJSVGInheritedFloatValue = -99.9999991;
     IJSVGGradient * fillGradient;
     
     BOOL usesDefaultFillColor;
+    BOOL shouldRender;
     
     NSColor * fillColor;
     NSColor * strokeColor;
@@ -94,6 +99,8 @@ static CGFloat IJSVGInheritedFloatValue = -99.9999991;
 
 @property ( nonatomic, assign ) IJSVGNodeType type;
 @property ( nonatomic, copy ) NSString * name;
+@property ( nonatomic, copy ) NSString * unicode;
+@property ( nonatomic, assign ) BOOL shouldRender;
 @property ( nonatomic, assign ) BOOL usesDefaultFillColor;
 @property ( nonatomic, assign ) CGFloat x;
 @property ( nonatomic, assign ) CGFloat y;
@@ -120,6 +127,7 @@ static CGFloat IJSVGInheritedFloatValue = -99.9999991;
 
 + (IJSVGNodeType)typeForString:(NSString *)string;
 
+- (void)applyPropertiesFromNode:(IJSVGNode *)node;
 - (id)initWithDef:(BOOL)flag;
 - (void)addDef:(IJSVGNode *)aDef;
 - (IJSVGDef *)defForID:(NSString *)anID;
