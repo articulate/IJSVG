@@ -178,9 +178,15 @@ static NSColor * _baseColor = nil;
     if( ( self = [super init] ) != nil )
     {
         _delegate = delegate;
+        NSError *error = nil;
         _group = [[IJSVGParser alloc] initWithData:data
-                                           encoding:NSUTF8StringEncoding
+                                             error:&error
                                            delegate:delegate];
+        
+        if (error)
+        {
+            NSLog(@"Error parsing SVG: %@", error);
+        }
     }
 #endif
     return self;
@@ -397,7 +403,6 @@ static NSColor * _baseColor = nil;
 #endif
         
         // Adjust for viewport origin
-#warning new viewport adjustment from merge, need to test locally before leaving in
         tX -= _group.viewBox.origin.x*_scale;
         tY -= _group.viewBox.origin.y*_scale;
         

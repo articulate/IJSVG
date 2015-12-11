@@ -63,7 +63,6 @@
         // load the document / file, assume its UTF8
         
         NSError * anError = nil;
-        NSStringEncoding encoding;
         NSString * str = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
         
         // error grabbing contents from the file :(

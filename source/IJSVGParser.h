@@ -47,7 +47,7 @@ handleForeignObject:(IJSVGForeignObject *)foreignObject
 @property ( nonatomic, readonly ) NSSize proposedViewSize;
 
 - (id)initWithData:(NSData *)data
-          encoding:(NSStringEncoding)encoding
+             error:(NSError **)error
           delegate:(id<IJSVGParserDelegate>)delegate;
 - (id)initWithFileURL:(NSURL *)aURL
                 error:(NSError **)error
