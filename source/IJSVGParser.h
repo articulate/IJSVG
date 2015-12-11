@@ -17,6 +17,7 @@
 #import "IJSVGDef.h"
 #import "IJSVGLinearGradient.h"
 #import "IJSVGRadialGradient.h"
+#import "IJSVGError.h"
 
 @class IJSVGParser;
 
@@ -34,26 +35,31 @@ handleForeignObject:(IJSVGForeignObject *)foreignObject
 @interface IJSVGParser : IJSVGGroup {
     
     NSRect viewBox;
+    NSSize proposedViewSize;
     
 @private
     id<IJSVGParserDelegate> _delegate;
     NSXMLDocument * _document;
-    
+    NSMutableArray * _glyphs;
 }
 
 @property ( nonatomic, readonly ) NSRect viewBox;
+@property ( nonatomic, readonly ) NSSize proposedViewSize;
 
 - (id)initWithData:(NSData *)data
           encoding:(NSStringEncoding)encoding
           delegate:(id<IJSVGParserDelegate>)delegate;
 - (id)initWithFileURL:(NSURL *)aURL
+                error:(NSError **)error
              delegate:(id<IJSVGParserDelegate>)delegate;
-- (id)initWithFileURL:(NSURL *)aURL
-             encoding:(NSStringEncoding)encoding
-             delegate:(id<IJSVGParserDelegate>)delegate;;
 + (IJSVGParser *)groupForFileURL:(NSURL *)aURL;
 + (IJSVGParser *)groupForFileURL:(NSURL *)aURL
                         delegate:(id<IJSVGParserDelegate>)delegate;
++ (IJSVGParser *)groupForFileURL:(NSURL *)aURL
+                           error:(NSError **)error
+                        delegate:(id<IJSVGParserDelegate>)delegate;
 - (NSSize)size;
+- (BOOL)isFont;
+- (NSArray *)glyphs;
 
 @end

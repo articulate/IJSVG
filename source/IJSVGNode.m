@@ -11,8 +11,10 @@
 
 @implementation IJSVGNode
 
+@synthesize shouldRender;
 @synthesize type;
 @synthesize name;
+@synthesize unicode;
 @synthesize x;
 @synthesize y;
 @synthesize width;
@@ -40,6 +42,7 @@
 - (void)dealloc
 {
     free(strokeDashArray);
+    [unicode release], unicode = nil;
     [fillGradient release], fillGradient = nil;
     [transforms release], transforms = nil;
     [fillColor release], fillColor = nil;
@@ -77,8 +80,14 @@
         return IJSVGNodeTypeLinearGradient;
     if( [string isEqualToString:@"radialgradient"] )
         return IJSVGNodeTypeRadialGradient;
+    if( [string isEqualToString:@"glyph"] )
+        return IJSVGNodeTypeGlyph;
+    if( [string isEqualToString:@"font"] )
+        return IJSVGNodeTypeFont;
     if( [string isEqualToString:@"clippath"] )
         return IJSVGNodeTypeClipPath;
+    if( [string isEqualToString:@"mask"] )
+        return IJSVGNodeTypeMask;
     return IJSVGNodeTypeNotFound;
 }
 
@@ -90,45 +99,52 @@
     return self;
 }
 
-- (id)copyWithZone:(NSZone *)zone
+- (void)applyPropertiesFromNode:(IJSVGNode *)node
 {
-    IJSVGNode * node = [[self class] allocWithZone:zone];
-    node.name = self.name;
-    node.type = self.type;
+    self.name = node.name;
+    self.type = node.type;
+    self.unicode = node.unicode;
     
-    node.x = self.x;
-    node.y = self.y;
-    node.width = self.width;
-    node.height = self.height;
+    self.x = node.x;
+    self.y = node.y;
+    self.width = node.width;
+    self.height = node.height;
     
-    node.fillGradient = self.fillGradient;
+    self.fillGradient = node.fillGradient;
     
-    node.fillColor = self.fillColor;
-    node.strokeColor = self.strokeColor;
-    node.clipPath = self.clipPath;
+    self.fillColor = node.fillColor;
+    self.strokeColor = node.strokeColor;
+    self.clipPath = node.clipPath;
     
-    node.opacity = self.opacity;
-    node.strokeWidth = self.strokeWidth;
-    node.fillOpacity = self.fillOpacity;
-    node.strokeOpacity = self.strokeOpacity;
+    self.opacity = node.opacity;
+    self.strokeWidth = node.strokeWidth;
+    self.fillOpacity = node.fillOpacity;
+    self.strokeOpacity = node.strokeOpacity;
     
-    node.identifier = self.identifier;
-    node.usesDefaultFillColor = self.usesDefaultFillColor;
+    self.identifier = node.identifier;
+    self.usesDefaultFillColor = node.usesDefaultFillColor;
     
-    node.transforms = self.transforms;
-    node.def = self.def;
-    node.windingRule = self.windingRule;
-    node.lineCapStyle = self.lineCapStyle;
-    node.lineJoinStyle = self.lineJoinStyle;
-    node.parentNode = self.parentNode;
+    self.transforms = node.transforms;
+    self.def = node.def;
+    self.windingRule = node.windingRule;
+    self.lineCapStyle = node.lineCapStyle;
+    self.lineJoinStyle = node.lineJoinStyle;
+    self.parentNode = node.parentNode;
+    
+    self.shouldRender = node.shouldRender;
     
     // dash array needs physical memory copied
     CGFloat * nStrokeDashArray = (CGFloat *)malloc(node.strokeDashArrayCount*sizeof(CGFloat));
     memcpy( self.strokeDashArray, nStrokeDashArray, node.strokeDashArrayCount*sizeof(CGFloat));
-    node.strokeDashArray = nStrokeDashArray;
-    node.strokeDashArrayCount = self.strokeDashArrayCount;
-    node.strokeDashOffset = self.strokeDashOffset;
-    
+    self.strokeDashArray = nStrokeDashArray;
+    self.strokeDashArrayCount = node.strokeDashArrayCount;
+    self.strokeDashOffset = node.strokeDashOffset;
+}
+
+- (id)copyWithZone:(NSZone *)zone
+{
+    IJSVGNode * node = [[self class] allocWithZone:zone];
+    [node applyPropertiesFromNode:self];
     return node;
 }
 
@@ -140,6 +156,7 @@
         self.fillOpacity = 1.f;
         self.strokeOpacity = 1.f;
         self.strokeDashOffset = 0.f;
+        self.shouldRender = YES;
         self.strokeWidth = IJSVGInheritedFloatValue;
         self.windingRule = IJSVGWindingRuleInherit;
         self.lineCapStyle = IJSVGLineCapStyleInherit;
