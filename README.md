@@ -1,20 +1,14 @@
 IJSVG
 =====
-IJSVG is a Mac OSX 10.7+ COCOA library for rendering SVG's within your COCOA applications, its extremely fast and native.
+IJSVG is a Mac OSX 10.7+ COCOA library for rendering SVG's within your COCOA applications, its extremely fast and native. Orignaly written for IconJar. It also supports the NSPasteboards writing protocol, an IJSVG object can be put onto the pasteboard and application like Sketch and Photoshop can paste them into the document as vector objects (generated PDF's on the fly).
 
-Orignaly written for IconJar (in development)
-
-It takes SVG's files and makes pretty pictures like this:
-
-![SVG Example](http://cl.ly/image/0G3S3Q1s271Z/Screen%20Shot%202014-09-02%20at%2018.17.52.png)
-
-It also supports the NSPasteboards writing protocol, an IJSVG object can be put onto the pasteboard and application like Sketch and Photoshop can paste them into the document as vector objects (generated PDF's on the fly).
+Fork
+====
+This fork is branched from the main public IJSVG repo but contains changes specific to 360 character rendering.
 
 Example app
 ====
 There is an example application provided, it will generate this test bed for SVG's
-
-![SVG Example App](http://cl.ly/image/2j1T2c351Z22/Screen%20Shot%202014-09-05%20at%2017.50.50.png)
 
 The example screen contains six SVG's rendered in individual views, from left to right.
 * First example shows transforms and colours
