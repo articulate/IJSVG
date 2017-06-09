@@ -290,15 +290,15 @@ static IJSVGRenderingDebugOptions _IJSVGrenderingDebugOptions = IJSVGRenderingDe
         NSError * anError = nil;
         _delegate = delegate;
         [self _checkDelegate];
-        
+
         // setup the parser
         _group = [[IJSVGParser alloc] initWithSVGString:string
                                                   error:&anError
                                                delegate:self];
-        
+
         [self _setupBasicInfoFromGroup];
         [self _setupBasicsFromAnyInitializer];
-        
+
         // something went wrong :(
         if(_group == nil) {
             if(error != NULL) {
@@ -350,28 +350,6 @@ static IJSVGRenderingDebugOptions _IJSVGrenderingDebugOptions = IJSVGRenderingDe
     return _viewBox;
 }
 
-- (id)initWithData:(NSData *)data
-          delegate:(id<IJSVGDelegate>)delegate
-{
-#ifndef __clang_analyzer__
-    /* NOTE: this method does not invoke or take advantage of IJSVGCache. */
-    
-    if( ( self = [super init] ) != nil )
-    {
-        _delegate = delegate;
-        NSError *error = nil;
-        _group = [[IJSVGParser alloc] initWithData:data
-                                             error:&error
-                                           delegate:delegate];
-        
-        if (error)
-        {
-            NSLog(@"Error parsing SVG: %@", error);
-        }
-    }
-#endif
-    return self;
-}
 
 - (BOOL)isFont
 {
@@ -655,35 +633,6 @@ static IJSVGRenderingDebugOptions _IJSVGrenderingDebugOptions = IJSVGRenderingDe
     return (error == nil);
 }
 
-//// Matts code
-
-- (void)_recursiveColors:(IJSVGGroup *)group
-{
-    if( group.fillColor != nil && !group.usesDefaultFillColor )
-        [self _addColor:group.fillColor];
-    if( group.strokeColor != nil )
-        [self _addColor:group.strokeColor];
-    for( id node in [group children] )
-    {
-        if( [node isKindOfClass:[IJSVGGroup class]] )
-            [self _recursiveColors:node];
-        else {
-            IJSVGPath * p = (IJSVGPath*)node;
-            if( p.fillColor != nil )
-                [self _addColor:p.fillColor];
-            if( p.strokeColor != nil )
-                [self _addColor:p.strokeColor];
-        }
-    }
-}
-
-- (void)_addColor:(NSColor *)color
-{
-    if( [_colors containsObject:color] || color == [NSColor clearColor] )
-        return;
-    [_colors addObject:color];
-}
-
 - (void)_beginDraw:(NSRect)rect
 {
     // in order to correctly fit the the SVG into the
@@ -704,221 +653,6 @@ static IJSVGRenderingDebugOptions _IJSVGrenderingDebugOptions = IJSVGRenderingDe
 - (NSSize)viewBoxSize
 {
     return _group.viewBox.size;
-}
-
-- (void)_prepClip:(IJSVGNode *)node
-          context:(CGContextRef)context
-        drawBlock:(dispatch_block_t)block
-             rect:(NSRect)rect
-{
-    if( node.clipPath != nil )
-    {
-        for( id clip in node.clipPath.children )
-        {
-            // save the context
-            CGContextSaveGState(context);
-            {
-                
-                if( [clip isKindOfClass:[IJSVGGroup class]] )
-                {
-                    [self _drawGroup:clip
-                                rect:rect
-                             context:context];
-                } else {
-                    
-                    // add the clip and draw
-                    IJSVGPath * path = (IJSVGPath *)clip;
-                    [[IJSVGTransform transformedPath:path] addClip];
-                    block();
-                }
-                
-                // restore the context
-            }
-            CGContextRestoreGState(context);
-        }
-        return;
-    }
-    
-    // just draw
-    block();
-}
-
-- (void)_drawGroup:(IJSVGGroup *)group
-              rect:(NSRect)rect
-           context:(CGContextRef)context
-{
-    
-    if( !group.shouldRender )
-        return;
-    
-    CGContextSaveGState( context );
-    {
-        
-        // perform any transforms
-        [self _applyDefaults:context
-                        node:group];
-        
-        dispatch_block_t drawBlock = ^(void)
-        {
-            // it could be a group or a path
-            for( id child in [group children] )
-            {
-                if( [child isKindOfClass:[IJSVGPath class]] )
-                {
-                    dispatch_block_t block = ^(void)
-                    {
-                        IJSVGPath * p = (IJSVGPath *)child;
-                        if( p.shouldRender )
-                            [self _drawPath:p
-                                       rect:rect
-                                    context:context];
-                    };
-                    
-                    // draw the clip
-                    [self _prepClip:child
-                            context:context
-                          drawBlock:block
-                               rect:rect];
-                    
-                } else if( [child isKindOfClass:[IJSVGGroup class]] ) {
-                    
-                    // if its a group, we recursively call this method
-                    // to generate the paths required
-                    [self _drawGroup:child
-                                rect:rect
-                             context:context];
-                }
-            }
-            
-        };
-        
-        // main group clipping
-        [self _prepClip:group
-                context:context
-              drawBlock:drawBlock
-                   rect:rect];
-        
-    }
-    // restore the context
-    CGContextRestoreGState(context);
-}
-
-- (void)_applyDefaults:(CGContextRef)context
-                  node:(IJSVGNode *)node
-{
-    // the opacity, if its 0, assume its broken
-    // so set it to 1.f
-    CGFloat opacity = node.opacity;
-    if( opacity == 0.f )
-        opacity = 1.f;
-    
-    // scale it
-    CGContextSetAlpha( context, opacity );
-    CGContextTranslateCTM( context, node.x, node.y);
-    
-    // perform any transforms
-    for( IJSVGTransform * transform in node.transforms )
-    {
-        [IJSVGTransform performTransform:transform
-                               inContext:context];
-    }
-    
-}
-
-- (void)_drawPath:(IJSVGPath *)path
-             rect:(NSRect)rect
-          context:(CGContextRef)ref
-{
-    // there should be a colour on it...
-    // defaults to black if not existant
-    CGContextSaveGState(ref);
-    {
-        // there could be transforms per path
-        [self _applyDefaults:ref
-                        node:path];
-        
-        // fill the path
-        if( path.fillGradient != nil )
-        {
-            CGContextSaveGState(ref);
-            {
-                // for this to work, we need to add the clip so when
-                // drawing occurs, it doesnt go outside the path bounds
-                [path.path addClip];
-                [path.fillGradient drawInContextRef:ref
-                                               path:path];
-            }
-            CGContextRestoreGState(ref);
-        } else {
-            // no gradient specified
-            // just use the color instead
-            if( path.windingRule != IJSVGWindingRuleInherit )
-                [path.path setWindingRule:(NSWindingRule)path.windingRule];
-            
-            if( path.fillColor != nil )
-            {
-                [path.fillColor set];
-                [path.path fill];
-            } else if( _baseColor != nil ) {
-                
-                // is there a base color?
-                // this is basically used whenever no color
-                // is set, its also set via [IJSVG setBaseColor],
-                // this must be defined!
-                
-                [_baseColor set];
-                [path.path fill];
-            } else {
-                [path.path fill];
-            }
-        }
-        
-        // any stroke?
-        if( path.strokeColor != nil )
-        {
-            // default line width is 1
-            // if its defined elsewhere, then
-            // use that one instead
-            CGFloat lineWidth = 1.f;
-            if( path.strokeWidth > 0.f )
-                lineWidth = path.strokeWidth;
-            
-            if( path.lineCapStyle != IJSVGLineCapStyleInherit )
-                [path.path setLineCapStyle:(NSLineCapStyle)path.lineCapStyle];
-            else
-                [path.path setLineCapStyle:NSButtLineCapStyle];
-            
-            if( path.lineJoinStyle != IJSVGLineJoinStyleInherit )
-                [path.path setLineJoinStyle:(NSLineJoinStyle)path.lineJoinStyle];
-            
-            [path.strokeColor setStroke];
-            [path.path setLineWidth:lineWidth];
-            
-            // any dashed array?
-            if( path.strokeDashArrayCount != 0 )
-                [path.path setLineDash:path.strokeDashArray
-                                 count:path.strokeDashArrayCount
-                                 phase:path.strokeDashOffset];
-            
-            [path.path stroke];
-        }
-        
-        if (_IJSVGrenderingDebugOptions & IJSVGRenderingDebugOptionsOutlineClearFillNoStrokeShapes)
-        {
-            if ([path isInvisibleFillAndStroke])
-            {
-                NSBezierPath *pathCopy = [path.path.copy autorelease];
-                const CGFloat dashArray[] = {15.0, 5.0};
-                [pathCopy setLineDash:dashArray count:2 phase:0];
-                [[NSColor redColor] setStroke];
-                pathCopy.lineWidth = 4;
-                [pathCopy stroke];
-            }
-        }
-    }
-    // restore the graphics state
-    CGContextRestoreGState(ref);
-    
 }
 
 #pragma mark - Bounds

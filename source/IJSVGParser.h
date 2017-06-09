@@ -108,11 +108,6 @@ handleForeignObject:(IJSVGForeignObject *)foreignObject
 - (id)initWithSVGString:(NSString *)string
                   error:(NSError **)error
                delegate:(id<IJSVGParserDelegate>)delegate;
-
-
-- (id)initWithData:(NSData *)data
-             error:(NSError **)error
-          delegate:(id<IJSVGParserDelegate>)delegate;
 		  
 - (id)initWithFileURL:(NSURL *)aURL
                 error:(NSError **)error

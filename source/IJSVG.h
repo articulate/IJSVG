@@ -102,8 +102,6 @@ typedef CGFloat (^IJSVGRenderingBackingScaleFactorHelper)();
 + (id)svgNamed:(NSString *)string
       delegate:(id<IJSVGDelegate>)delegate;
 
-- (id)initWithData:(NSData *)data
-          delegate:(id<IJSVGDelegate>)delegate;
 + (id)svgNamed:(NSString *)string
       useCache:(BOOL)useCache
       delegate:(id<IJSVGDelegate>)delegate;
@@ -162,7 +160,6 @@ typedef CGFloat (^IJSVGRenderingBackingScaleFactorHelper)();
 - (void)drawInRect:(NSRect)rect
            context:(CGContextRef)context;
 
-- (NSArray *)colors;
 - (NSSize)viewBoxSize;
 - (NSData *)PDFData;
 - (NSData *)PDFData:(NSError **)error;

@@ -48,27 +48,26 @@
     [super dealloc];
 }
 
-- (id)initWithData:(NSData *)data
+- (id)initWithSVGString:(NSString *)string
                   error:(NSError **)error
                delegate:(id<IJSVGParserDelegate>)delegate
 {
     if( ( self = [super init] ) != nil )
     {
         _delegate = delegate;
-        
+
         _respondsTo.handleForeignObject = [_delegate respondsToSelector:@selector(svgParser:handleForeignObject:document:)];
         _respondsTo.shouldHandleForeignObject = [_delegate respondsToSelector:@selector(svgParser:shouldHandleForeignObject:)];
         _respondsTo.handleSubSVG = [_delegate respondsToSelector:@selector(svgParser:foundSubSVG:withSVGString:)];
-        
+
         _glyphs = [[NSMutableArray alloc] init];
         _parsedNodes = [[NSMutableArray alloc] init];
         _defNodes = [[NSMutableDictionary alloc] init];
         _svgs = [[NSMutableArray alloc] init];
-        
+
         // load the document / file, assume its UTF8
-        
-        NSString * string = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-        
+
+
         // use NSXMLDocument as its the easiest thing to do on OSX
         NSError * anError = nil;
         @try {
@@ -78,13 +77,13 @@
         }
         @catch (NSException *exception) {
         }
-        
+
         // error parsing the XML document
         if( anError != nil ) {
             return [self _handleErrorWithCode:IJSVGErrorParsingFile
                                         error:error];
         }
-        
+
         // attempt to parse the file
         anError = nil;
         @try {
@@ -94,8 +93,8 @@
             return [self _handleErrorWithCode:IJSVGErrorParsingSVG
                                         error:error];
         }
-        
-        
+
+
         // check the actual parsed SVG
         anError = nil;
         if( ![self _validateParse:&anError] ) {
@@ -104,23 +103,35 @@
             [self release], self = nil;
             return nil;
         }
-        
+
         // we have actually finished with the document at this point
         // so just get rid of it
         [_document release], _document = nil;
-        
+
     }
     return self;
-    
+
 }
 
 - (id)initWithFileURL:(NSURL *)aURL
                 error:(NSError **)error
              delegate:(id<IJSVGParserDelegate>)delegate
 {
-    NSData *data = [[[NSData alloc] initWithContentsOfURL:aURL] autorelease];
-    return [self initWithData:data error:error delegate:delegate];
+    NSError * anError = nil;
+    NSStringEncoding encoding;
+    NSString * str = [NSString stringWithContentsOfFile:aURL.path
+                                           usedEncoding:&encoding
+                                                  error:&anError];
 
+    // error reading file
+    if(str == nil) {
+        return [self _handleErrorWithCode:IJSVGErrorReadingFile
+                                    error:error];
+    }
+
+    return [self initWithSVGString:str
+                             error:error
+                          delegate:delegate];
 }
 
 - (void *)_handleErrorWithCode:(NSUInteger)code
@@ -535,7 +546,6 @@
     {
         boundingBox = NSUnionRect(boundingBox, path.path.bounds);
         
-        // For the visual bounding box, we explicitly ignore no-fill, no-stroke shapes:
         if (![path isInvisibleFillAndStroke])
         {
             visualBoundingBox = NSUnionRect(visualBoundingBox, path.path.bounds);
@@ -1013,10 +1023,10 @@
             [parentGroup addDef:image];
             break;
         }
-            
-	    parentGroup.calculatedBoundingBox = boundingBox;
-	    parentGroup.calculatedVisualBoundingBox = visualBoundingBox;
     }
+
+    parentGroup.calculatedBoundingBox = NSUnionRect(boundingBox, parentGroup.calculatedBoundingBox);
+    parentGroup.calculatedVisualBoundingBox = NSUnionRect(visualBoundingBox, parentGroup.calculatedVisualBoundingBox);
 }
 
 - (void)_parseBlock:(NSXMLElement *)anElement
