@@ -10,6 +10,18 @@
 
 @implementation IJSVGUtils
 
+BOOL IJSVGIsLegalCommandCharacter(unichar aChar)
+{
+    char * validChars = "MmZzLlHhVvCcSsQqTtAa";
+    NSUInteger length = strlen(validChars);
+    for(NSUInteger i = 0; i < length; i++) {
+        if(aChar == validChars[i]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
 CGFloat angle( CGPoint a, CGPoint b ) {
     return [IJSVGUtils angleBetweenPointA:a
                                    pointb:b];
@@ -60,6 +72,22 @@ CGFloat degrees_to_radians( CGFloat degrees )
     return foundID;
 }
 
++ (IJSVGFontTraits)fontWeightTraitForString:(NSString *)string
+                                     weight:(CGFloat *)weight
+{
+    *weight = string.floatValue;
+    if([string isEqualToString:@"bold"])
+        return IJSVGFontTraitBold;
+    return IJSVGFontTraitNone;
+}
+
++ (IJSVGFontTraits)fontStyleStringForString:(NSString *)string
+{
+    if([string isEqualToString:@"italic"])
+        return IJSVGFontTraitItalic;
+    return IJSVGFontTraitNone;
+}
+
 + (IJSVGWindingRule)windingRuleForString:(NSString *)string
 {
     if( [string isEqualToString:@"evenodd"] )
@@ -95,6 +123,107 @@ CGFloat degrees_to_radians( CGFloat degrees )
     return IJSVGLineCapStyleButt;
 }
 
++ (IJSVGUnitType)unitTypeForString:(NSString *)string
+{
+    if([string isEqualToString:@"userSpaceOnUse"]) {
+        return IJSVGUnitUserSpaceOnUse;
+    }
+    return IJSVGUnitObjectBoundingBox;
+}
+
++ (IJSVGBlendMode)blendModeForString:(NSString *)string
+{
+    string = string.lowercaseString;
+    if([string isEqualToString:@"normal"])
+        return IJSVGBlendModeNormal;
+    if([string isEqualToString:@"multiply"])
+        return IJSVGBlendModeMultiply;
+    if([string isEqualToString:@"screen"])
+        return IJSVGBlendModeScreen;
+    if([string isEqualToString:@"overlay"])
+        return IJSVGBlendModeOverlay;
+    if([string isEqualToString:@"darken"])
+        return IJSVGBlendModeDarken;
+    if([string isEqualToString:@"lighten"])
+        return IJSVGBlendModeLighten;
+    if([string isEqualToString:@"color-dodge"])
+        return IJSVGBlendModeColorDodge;
+    if([string isEqualToString:@"color-burn"])
+        return IJSVGBlendModeColorBurn;
+    if([string isEqualToString:@"hard-light"])
+        return IJSVGBlendModeHardLight;
+    if([string isEqualToString:@"soft-light"])
+        return IJSVGBlendModeSoftLight;
+    if([string isEqualToString:@"difference"])
+        return IJSVGBlendModeDifference;
+    if([string isEqualToString:@"exclusion"])
+        return IJSVGBlendModeExclusion;
+    if([string isEqualToString:@"hue"])
+        return IJSVGBlendModeHue;
+    if([string isEqualToString:@"saturation"])
+        return IJSVGBlendModeSaturation;
+    if([string isEqualToString:@"color"])
+        return IJSVGBlendModeColor;
+    if([string isEqualToString:@"luminosity"])
+        return IJSVGBlendModeLuminosity;
+    return IJSVGBlendModeNormal;
+}
+
++ (NSString *)mixBlendingModeForBlendMode:(IJSVGBlendMode)blendMode
+{
+    switch (blendMode) {
+        case IJSVGBlendModeMultiply: {
+            return @"multiple";
+        }
+        case IJSVGBlendModeScreen: {
+            return @"screen";
+        }
+        case IJSVGBlendModeOverlay: {
+            return @"overlay";
+        }
+        case IJSVGBlendModeDarken: {
+            return @"darken";
+        }
+        case IJSVGBlendModeLighten: {
+            return @"lighten";
+        }
+        case IJSVGBlendModeColorDodge: {
+            return @"color-dodge";
+        }
+        case IJSVGBlendModeColorBurn: {
+            return @"color-burn";
+        }
+        case IJSVGBlendModeHardLight: {
+            return @"hard-light";
+        }
+        case IJSVGBlendModeSoftLight: {
+            return @"soft-light";
+        }
+        case IJSVGBlendModeDifference: {
+            return @"difference";
+        }
+        case IJSVGBlendModeExclusion: {
+            return @"exclusion";
+        }
+        case IJSVGBlendModeHue: {
+            return @"hue";
+        }
+        case IJSVGBlendModeSaturation: {
+            return @"saturation";
+        }
+        case IJSVGBlendModeColor: {
+            return @"color";
+        }
+        case IJSVGBlendModeLuminosity: {
+            return @"luminosity";
+        }
+        case IJSVGBlendModeNormal:
+        default: {
+            return nil;
+        }
+    }
+}
+
 + (CGFloat *)commandParameters:(NSString *)command
                          count:(NSInteger *)count
 {
@@ -112,29 +241,95 @@ CGFloat degrees_to_radians( CGFloat degrees )
 + (CGFloat *)scanFloatsFromString:(NSString *)string
                              size:(NSInteger *)length
 {
-    NSInteger defSize = 1000;
+    // default sizes and memory
+    // sizes for the string buffer
+    NSInteger defSize = 50;
     NSInteger size = defSize;
-    CGFloat * floats = (CGFloat *)malloc(sizeof(CGFloat)*size);
-    NSScanner * scanner = [[[NSScanner alloc] initWithString:string] autorelease];
-    float num = 0;
+    NSInteger sLength = string.length;
+    
+    // default memory size for the floats
+    NSInteger defFloatSize = 100;
+    NSInteger floatSize = defFloatSize;
+    
     NSInteger i = 0;
-    while( [scanner isAtEnd] == NO )
-    {
-        if( [scanner scanFloat:&num] )
-        {
-            if( (i+1) == size )
-            {
-                // if we reach here, we need to reallocate memory...serious amount of floats..
-                // something going on weird in the SVG? - possible...
-                size += defSize;
-                floats = (CGFloat *)realloc( floats, sizeof(CGFloat)*size);
-            }
-            floats[i++] = num;
-            continue;
+    NSInteger counter = 0;
+    
+    const char * cString = [string cStringUsingEncoding:NSUTF8StringEncoding];
+    const char * validChars = "0123456789eE+-.";
+    
+    // buffer for the returned floats
+    CGFloat * floats = (CGFloat *)malloc(sizeof(CGFloat)*defFloatSize);
+    
+    char * buffer = NULL;
+    bool isDecimal = false;
+    int bufferCount = 0;
+    
+    while(i < sLength) {
+        char currentChar = cString[i];
+        
+        // work out next char
+        char nextChar = (char)0;
+        if(i < (sLength-1)) {
+            nextChar = cString[i+1];
         }
-        [scanner setScanLocation:scanner.scanLocation+1];
+        
+        bool isValid = strchr(validChars, currentChar);
+        
+        // in order to work out the split, its either because the next char is
+        // a  hyphen or a plus, or next char is a decimal and the current number is a decimal
+        bool isE = currentChar == 'e' || currentChar == 'E';
+        bool wantsEnd = nextChar == '-' || nextChar == '+' ||
+            (nextChar == '.' && isDecimal);
+        
+        // could be a float like 5.334e-5 so dont break on the hypen
+        if(wantsEnd && isE && (nextChar == '-' || nextChar == '+')) {
+            wantsEnd = false;
+        }
+        
+        // make sure its a valid string
+        if(isValid) {
+            // alloc the buffer if needed
+            if(buffer == NULL) {
+                buffer = (char *)calloc(sizeof(char),size);
+            } else if((bufferCount+1) == size) {
+                // realloc the buffer, incase the string is overflowing the
+                // allocated memory
+                size += defSize;
+                buffer = (char *)realloc(buffer, sizeof(char)*size);
+            }
+            // set the actual char against it
+            if(currentChar == '.') {
+                isDecimal = true;
+            }
+            buffer[bufferCount++] = currentChar;
+        } else {
+            // if its an invalid char, just stop it
+            wantsEnd = true;
+        }
+        
+        // is at end of string, or wants to be stopped
+        // buffer has to actually exist or its completly
+        // useless and will cause a crash
+        if(buffer != NULL && (wantsEnd || i == sLength-1)) {
+            // make sure there is enough room in the float pool
+            if((counter+1) == floatSize) {
+                floatSize += defFloatSize;
+                floats = (CGFloat *)realloc(floats, sizeof(CGFloat)*floatSize);
+            }
+            
+            // add the float
+            floats[counter++] = atof(buffer);
+            
+            // memory clean and counter resets
+            free(buffer);
+            size = defSize;
+            isDecimal = false;
+            bufferCount = 0;
+            buffer = NULL;
+        }
+        i++;
     }
-    *length = i;
+    *length = counter;
     return floats;
 }
 
