@@ -7,6 +7,7 @@
 //
 
 #import "SVGView.h"
+#import "IJSVGExporter.h"
 
 @implementation SVGView
 
@@ -21,13 +22,16 @@
     if( ( self = [super initWithFrame:frameRect] ) != nil )
     {
         svg = [self svg];
+        svg.renderingBackingScaleHelper = ^{
+            return [svg computeBackingScale:self.window.backingScaleFactor];
+        };
     }
     return self;
 }
 
 - (IJSVG *)svg
 {
-    return [[IJSVG svgNamed:@"test"] retain];
+    return [IJSVG svgNamed:@"test"];
 }
 
 - (void)drawRect:(NSRect)dirtyRect

@@ -10,26 +10,22 @@
 #import "IJSVGDef.h"
 #import "IJSVGTransform.h"
 
-@interface IJSVGGradient : IJSVGDef {
-    
-    NSGradient * gradient;
-    CGGradientRef CGGradient;
-    CGFloat angle;
-    CGPoint startPoint;
-    CGPoint endPoint;
-    
-}
+@interface IJSVGGradient : IJSVGNode
 
 @property ( nonatomic, retain ) NSGradient * gradient;
 @property ( nonatomic, assign ) CGFloat angle;
 @property ( nonatomic, assign ) CGPoint startPoint;
 @property ( nonatomic, assign ) CGPoint endPoint;
 @property ( nonatomic, assign ) CGGradientRef CGGradient;
+@property ( nonatomic, retain ) IJSVGUnitLength * x1;
+@property ( nonatomic, retain ) IJSVGUnitLength * x2;
+@property ( nonatomic, retain ) IJSVGUnitLength * y1;
+@property ( nonatomic, retain ) IJSVGUnitLength * y2;
 
 + (CGFloat *)computeColorStopsFromString:(NSXMLElement *)element
                                   colors:(NSArray **)someColors;
 - (CGGradientRef)CGGradient;
 - (void)drawInContextRef:(CGContextRef)ctx
-                    path:(IJSVGPath *)path;
+                    rect:(NSRect)rect;
 
 @end
