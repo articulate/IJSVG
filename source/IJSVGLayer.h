@@ -73,7 +73,7 @@
 @property (nonatomic, assign) BOOL requiresBackingScaleHelp; \
 @property (nonatomic, assign) CGFloat backingScaleFactor; \
 @property (nonatomic, assign) CGBlendMode blendingMode; \
-@property (nonatomic, assign) CGPoint absoluteOrigin;
+@property (nonatomic, assign) CGPoint absoluteOrigin; \
 
 #define IJSVG_LAYER_DEFAULT_SYNTHESIZE \
 @synthesize gradientFillLayer; \
@@ -83,7 +83,8 @@
 @synthesize strokeLayer; \
 @synthesize requiresBackingScaleHelp; \
 @synthesize backingScaleFactor; \
-@synthesize blendingMode;
+@synthesize blendingMode; \
+@synthesize absoluteOrigin; \
 
 #define IJSVG_LAYER_DEFAULT_DEALLOC_INSTRUCTIONS \
 IJSVGBeginTransactionLock(); \

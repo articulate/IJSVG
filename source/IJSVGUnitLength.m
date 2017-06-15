@@ -66,7 +66,7 @@
 {
     if(self.type == IJSVGUnitLengthTypePercentage) {
         return ((anotherValue/100.f)*(self.value*100.f));
-    }
+    }    
     return self.value;
 }
 

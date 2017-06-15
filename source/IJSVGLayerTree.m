@@ -191,6 +191,8 @@
     // basic fill color and rule
     layer.fillColor = nil;
     layer.fillRule = [self fillRule:path.windingRule];
+//    layer.borderColor = [NSColor blueColor].CGColor;
+//    layer.borderWidth = 1;
     return layer;
 }
 
@@ -398,6 +400,7 @@
     gradLayer.frame = CGPathGetBoundingBox(((IJSVGShapeLayer *)layer).path);
     gradLayer.gradient = gradient;
     gradLayer.mask = mask;
+    gradLayer.viewBox = self.viewBox;
     
     // is there a fill opacity?
     if(path.fillOpacity.value != 0.f) {
