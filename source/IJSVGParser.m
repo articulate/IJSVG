@@ -64,7 +64,7 @@
         _parsedNodes = [[NSMutableArray alloc] init];
         _defNodes = [[NSMutableDictionary alloc] init];
         _svgs = [[NSMutableArray alloc] init];
-
+        
         // load the document / file, assume its UTF8
 
 
@@ -913,6 +913,7 @@
                                               node:gradient];
             gradient.startPoint = startPoint;
             gradient.endPoint = endPoint;
+
             [parentGroup addDef:gradient];
             break;
         }

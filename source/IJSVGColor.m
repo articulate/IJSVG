@@ -206,7 +206,7 @@ static NSMutableDictionary * _colorTree = nil;
         CGFloat alpha = 1;
         if( count == 4 )
             alpha = params[3];
-        color = [NSColor colorWithDeviceRed:params[0]/255
+        color = [NSColor colorWithCalibratedRed:params[0]/255
                                       green:params[1]/255
                                        blue:params[2]/255
                                       alpha:alpha];
@@ -570,7 +570,7 @@ static NSMutableDictionary * _colorTree = nil;
                              to:(CGFloat)alphaValue
 {
     color = [color colorUsingColorSpace:[NSColorSpace deviceRGBColorSpace]];
-    return [NSColor colorWithDeviceRed:[color redComponent]
+    return [NSColor colorWithCalibratedRed:[color redComponent]
                                  green:[color greenComponent]
                                   blue:[color blueComponent]
                                  alpha:alphaValue];
@@ -616,10 +616,8 @@ static NSMutableDictionary * _colorTree = nil;
         NSInteger r = (hex>>16) & 0xFF;
         NSInteger g = (hex>>8) & 0xFF;
         NSInteger b = (hex) & 0xFF;
-        return [NSColor colorWithDeviceRed:r/255.f
-                                     green:g/255.f
-                                      blue:b/255.f
-                                     alpha:alpha];
+
+        return [NSColor colorWithRed255:r green255:g blue255:b alpha255:255.0 * alpha];
     }
     return nil;
 }
