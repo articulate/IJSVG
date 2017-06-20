@@ -187,35 +187,45 @@ static NSMutableDictionary * _colorTree = nil;
 + (NSColor *)colorFromString:(NSString *)string
 {
     if( [string length] < 3 )
+    {
         return nil;
+    }
  
     string = [string lowercaseString];
     NSColor * color = [[self class] colorFromPredefinedColorName:string];
+
     if( color != nil )
+    {
         return color;
+    }
     
     if( [[string lowercaseString] isEqualToString:@"none"] )
+    {
         return [NSColor clearColor];
+    }
     
     // is it RGB?
     if( [[string substringToIndex:3] isEqualToString:@"rgb"] )
     {
         NSInteger count = 0;
-        CGFloat * params = [IJSVGUtils commandParameters:string
-                                                   count:&count];
+        CGFloat * params = [IJSVGUtils commandParameters:string count:&count];
         CGFloat alpha = 1;
+
         if( count == 4 )
+        {
             alpha = params[3];
-        color = [NSColor colorWithCalibratedRed:params[0]/255
-                                      green:params[1]/255
-                                       blue:params[2]/255
-                                      alpha:alpha];
+        }
+
+        CGFloat colorComponents[4] = { params[0] / 255.f, params[1] / 255.f, params[2] / 255.f, alpha};
+
+        color = [NSColor colorWithColorSpace:[NSColorSpace displayP3ColorSpace] components:colorComponents count:4];
+
         free(params);
+
         return color;
     }
     
-    color = [[self class] colorFromHEXString:string
-                                       alpha:1.f];
+    color = [[self class] colorFromHEXString:string alpha:1.f];
     return color;
 }
 
@@ -239,7 +249,7 @@ static NSMutableDictionary * _colorTree = nil;
                           forceHex:(BOOL)forceHex
 {
     // convert to RGB
-    color = [color colorUsingColorSpace:[NSColorSpace deviceRGBColorSpace]];
+    color = [color colorUsingColorSpace:[NSColorSpace displayP3ColorSpace]];
     
     int red = color.redComponent * 0xFF;
     int green = color.greenComponent * 0xFF;
@@ -569,11 +579,7 @@ static NSMutableDictionary * _colorTree = nil;
 + (NSColor *)changeAlphaOnColor:(NSColor *)color
                              to:(CGFloat)alphaValue
 {
-    color = [color colorUsingColorSpace:[NSColorSpace deviceRGBColorSpace]];
-    return [NSColor colorWithCalibratedRed:[color redComponent]
-                                 green:[color greenComponent]
-                                  blue:[color blueComponent]
-                                 alpha:alphaValue];
+    return [[color colorWithAlphaComponent:alphaValue] colorUsingColorSpace:[NSColorSpace displayP3ColorSpace]];
 }
 
 + (BOOL)isColor:(NSString *)string
@@ -592,33 +598,45 @@ static NSMutableDictionary * _colorTree = nil;
 {
     // absolutely no string
     if( string == nil || string.length == 0 || ![[self class] isHex:string] )
+    {
         return nil;
+    }
     
     if( [[string substringToIndex:1] isEqualToString:@"#"] )
+    {
         string = [string substringFromIndex:1];
+    }
     
     // whats the length?
-    if(string.length == 3) {
+    if(string.length == 3)
+    {
         // shorthand...
         NSMutableString * str = [[[NSMutableString alloc] init] autorelease];
+
         for( NSInteger i = 0; i < string.length; i++ )
         {
             NSString * sub = [string substringWithRange:NSMakeRange( i, 1)];
             [str appendFormat:@"%@%@",sub,sub];
         }
+
         string = str;
     }
     
     NSScanner * scanner = [NSScanner scannerWithString:string];
+    
     unsigned int hex;
+
     if( [scanner scanHexInt:&hex] )
     {
         NSInteger r = (hex>>16) & 0xFF;
         NSInteger g = (hex>>8) & 0xFF;
         NSInteger b = (hex) & 0xFF;
 
-        return [NSColor colorWithRed255:r green255:g blue255:b alpha255:255.0 * alpha];
+        CGFloat colorComponents[4] = { r / 255.f, g / 255.f, b / 255.f, alpha};
+
+        return [NSColor colorWithColorSpace:[NSColorSpace displayP3ColorSpace] components:colorComponents count:4];
     }
+
     return nil;
 }
 

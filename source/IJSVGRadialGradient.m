@@ -89,71 +89,107 @@
     return ret;
 }
 
-- (CGFloat)_handleTransform:(IJSVGTransform *)transform
-                     bounds:(CGRect)bounds
-                      index:(NSInteger)index
-                      value:(CGFloat)value
-{
-    // rotate transform, assume its based on percentages
-    // if lower then 0 is specified for 1 or 2
-    CGFloat max = bounds.size.width>bounds.size.height?bounds.size.width:bounds.size.height;
-    if( transform.command == IJSVGTransformCommandRotate ) {
-        switch(index) {
-            case 1:
-            case 2: {
-                if(value<1.f) {
-                    return (max*value);
-                }
-                break;
-            }
-        }
-    }
-    return value;
-
-}
-
 - (void)drawInContextRef:(CGContextRef)ctx
-                    rect:(NSRect)rect
+             parentFrame:(NSRect)parentFrame
+                   frame:(NSRect)frame
 {
-    CGRect bounds = rect;
-    for( IJSVGTransform * transform in self.transforms ) {
-        IJSVGTransformParameterModifier modifier = ^CGFloat(NSInteger index, CGFloat value) {
-            return [self _handleTransform:transform
-                                   bounds:bounds
-                                    index:index
-                                    value:value];
+    /**
+
+     In order to draw correctly, we must follow the procedures in this document
+
+     https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/gradientUnits
+
+     So the steps are:
+
+     1. Get the coordinate
+     2. Apply the transforms from the svg. These are attached to this class on self.transforms, this will contain a MatrixTransform.
+     3. If in the UserSpace, translate the result relative to the parent.
+
+     When applying to the radius, the steps are:
+
+     1. Create rect with a width/height = diameter of the radius
+     2. Apply the transform
+     3. get the new radius by taking the width or height / 2 (since they represented the diameter).
+
+     */
+
+    BOOL isUserSpace = self.units == IJSVGUnitUserSpaceOnUse;
+
+    CGPoint startPoint = (CGPoint)
+    {
+        .x = self.cx.value,
+        .y = self.cy.value
+    };
+
+    CGFloat renderRadius = self.radius.value;
+    CGPoint gradientPoint = CGPointZero;
+
+    if(self.cx.type == IJSVGUnitLengthTypePercentage)
+    {
+        startPoint.x = CGRectGetWidth(parentFrame) * startPoint.x;
+    }
+
+    if(self.cy.type == IJSVGUnitLengthTypePercentage)
+    {
+        startPoint.y = CGRectGetHeight(parentFrame) * startPoint.y;
+    }
+
+    if(self.radius.type == IJSVGUnitLengthTypePercentage)
+    {
+        //
+        // According to the spec this should be the large radius for the circle so calculate for width and height and use the largest.
+        // https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/r
+        //
+        CGFloat xRadius = CGRectGetWidth(parentFrame) * radius.value;
+        CGFloat yRadius = CGRectGetHeight(parentFrame) * radius.value;
+
+        renderRadius = fmax(xRadius, yRadius);
+    }
+
+    if(isUserSpace == YES)
+    {
+        // calculate the rectangle to transform using the radius converted to a diameter
+        CGRect radiusCalculationRect = (CGRect)
+        {
+            .origin = NSZeroPoint,
+            .size = (CGSize) {
+                .width = renderRadius * 2,
+                .height = renderRadius * 2
+            }
         };
-        CGContextConcatCTM(ctx, [transform CGAffineTransformWithModifier:modifier]);
+
+        // apply the transforms from the svg file
+        for(IJSVGTransform * gradientTransform in self.transforms)
+        {
+            radiusCalculationRect = CGRectApplyAffineTransform(radiusCalculationRect, gradientTransform.CGAffineTransform);
+        }
+
+        // update the radius
+        renderRadius = CGRectGetHeight(radiusCalculationRect) / 2.f;
     }
-    
-    CGPoint sp = self.startPoint;
-    CGPoint ep = self.endPoint;
-    
-    if( self.startPoint.x == .5f ) {
-        sp.x = bounds.size.width*self.startPoint.x;
+
+    // now calculate the center point
+    gradientPoint = startPoint;
+
+    // apply the transforms from the svg
+    for(IJSVGTransform * gradientTransform in self.transforms)
+    {
+        gradientPoint = CGPointApplyAffineTransform(gradientPoint, gradientTransform.CGAffineTransform);
     }
-    
-    if(self.startPoint.y == .5f) {
-        sp.y = bounds.size.height*self.startPoint.y;
+
+    if(isUserSpace == YES)
+    {
+        // if in the suer space offset the origin to be relative to the parent
+        CGAffineTransform transform;
+        transform = CGAffineTransformMakeTranslation(-parentFrame.origin.x,
+                                                     -parentFrame.origin.y);
+
+        gradientPoint = CGPointApplyAffineTransform(gradientPoint, transform);
     }
-    
-    if(self.endPoint.x == .5f) {
-        ep.x = bounds.size.width*self.endPoint.x;
-    }
-    
-    if(self.endPoint.y == .5f) {
-        ep.y = bounds.size.height*self.endPoint.y;
-    }
-    
-    CGFloat r = self.radius.value;
-    if(r == .5f) {
-        r = (sp.x>sp.y?sp.x:sp.y);
-    }
-    
-    // actually perform the draw
-    CGGradientDrawingOptions options = kCGGradientDrawsBeforeStartLocation|kCGGradientDrawsAfterEndLocation;
-    CGGradientRef grad = self.CGGradient;
-    CGContextDrawRadialGradient(ctx, grad, sp, 0.f, ep, r, options);
+
+    // draw the gradient
+    CGGradientDrawingOptions options = kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation; 
+    CGContextDrawRadialGradient(ctx, self.CGGradient, gradientPoint, 0.f, gradientPoint, renderRadius, options);
 }
 
 @end

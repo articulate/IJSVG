@@ -26,6 +26,8 @@
                                   colors:(NSArray **)someColors;
 - (CGGradientRef)CGGradient;
 - (void)drawInContextRef:(CGContextRef)ctx
-                    rect:(NSRect)rect;
+             parentFrame:(NSRect)parentFrame
+                   frame:(NSRect)frame;
+
 
 @end
