@@ -37,14 +37,12 @@
         return;
     }
 
-    CGRect boundingBoxRect = self.frame;
     CGRect parentFrame = self.superlayer.frame;
-    
-    BOOL isUserSpace = NO;
+
+    CGRect boundingBoxRect = self.frame;
 
     if(self.gradient.units == IJSVGUnitUserSpaceOnUse)
     {
-        isUserSpace = YES;
         boundingBoxRect = self.viewBox;
     }
 
