@@ -107,7 +107,8 @@ handleForeignObject:(IJSVGForeignObject *)foreignObject
 
 - (id)initWithSVGString:(NSString *)string
                   error:(NSError **)error
-               delegate:(id<IJSVGParserDelegate>)delegate;
+               delegate:(id<IJSVGParserDelegate>)delegate
+          closeDocument:(BOOL)closeDocument;
 		  
 - (id)initWithFileURL:(NSURL *)aURL
                 error:(NSError **)error
@@ -122,5 +123,7 @@ handleForeignObject:(IJSVGForeignObject *)foreignObject
 - (BOOL)isFont;
 - (NSArray *)glyphs;
 - (NSArray<IJSVG *> *)subSVGs:(BOOL)recursive;
+
+- (NSXMLDocument *)copySVGDocument;
 
 @end

@@ -269,7 +269,8 @@ static IJSVGRenderingDebugOptions _IJSVGrenderingDebugOptions = IJSVGRenderingDe
 {
     return [self initWithSVGString:string
                              error:nil
-                          delegate:nil];
+                          delegate:nil
+                     closeDocument:YES];
 }
 
 - (id)initWithSVGString:(NSString *)string
@@ -277,12 +278,14 @@ static IJSVGRenderingDebugOptions _IJSVGrenderingDebugOptions = IJSVGRenderingDe
 {
     return [self initWithSVGString:string
                              error:error
-                          delegate:nil];
+                          delegate:nil
+                     closeDocument:YES];
 }
 
 - (id)initWithSVGString:(NSString *)string
                   error:(NSError **)error
                delegate:(id<IJSVGDelegate>)delegate
+          closeDocument:(BOOL)closeDocument
 {
     if((self = [super init]) != nil) {
         // this is basically the same as init with URL just
@@ -294,7 +297,8 @@ static IJSVGRenderingDebugOptions _IJSVGrenderingDebugOptions = IJSVGRenderingDe
         // setup the parser
         _group = [[IJSVGParser alloc] initWithSVGString:string
                                                   error:&anError
-                                               delegate:self];
+                                               delegate:self
+                                          closeDocument:closeDocument];
 
         [self _setupBasicInfoFromGroup];
         [self _setupBasicsFromAnyInitializer];
@@ -309,6 +313,12 @@ static IJSVGRenderingDebugOptions _IJSVGrenderingDebugOptions = IJSVGRenderingDe
         }
     }
     return self;
+}
+
+- (NSXMLDocument *)copySVGDocument
+{
+    // IJSVGParser makes a copy before returning, so no need to make a copy to return here.
+    return [_group copySVGDocument];
 }
 
 - (void)discardDOM
@@ -667,12 +677,22 @@ static IJSVGRenderingDebugOptions _IJSVGrenderingDebugOptions = IJSVGRenderingDe
     return boundingRect;
 }
 
-- (NSRect)visualBoundingBox
+- (NSRect)visualBoundingBoxRawSVGCoordinates
+{
+    return _group.calculatedVisualBoundingBox;
+}
+
+- (NSRect)boundingBoxIncludingInvisiblesRawSVGCoordinates
+{
+    return _group.calculatedBoundingBox;
+}
+
+- (NSRect)visualBoundingBoxForRendering
 {
     return [self boundingRectFlippedForYCoordinatesIfNeeded:_group.calculatedVisualBoundingBox];
 }
 
-- (NSRect)boundingBoxIncludingInvisibles
+- (NSRect)boundingBoxIncludingInvisiblesForRendering
 {
     return [self boundingRectFlippedForYCoordinatesIfNeeded:_group.calculatedBoundingBox];
 }

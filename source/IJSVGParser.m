@@ -51,6 +51,7 @@
 - (id)initWithSVGString:(NSString *)string
                   error:(NSError **)error
                delegate:(id<IJSVGParserDelegate>)delegate
+          closeDocument:(BOOL)closeDocument
 {
     if( ( self = [super init] ) != nil )
     {
@@ -94,7 +95,6 @@
                                         error:error];
         }
 
-
         // check the actual parsed SVG
         anError = nil;
         if( ![self _validateParse:&anError] ) {
@@ -104,13 +104,52 @@
             return nil;
         }
 
-        // we have actually finished with the document at this point
-        // so just get rid of it
-        [_document release], _document = nil;
+        if (closeDocument)
+        {
+            // we have actually finished with the document at this point
+            // so just get rid of it
+            [_document release], _document = nil;
+        }
 
     }
     return self;
 
+}
+
+- (NSXMLDocument *)copySVGDocument
+{
+    NSXMLDocument *result = [_document copy];
+
+    // ssheldon: The rects have the co-ordinates namespaced using the "namespacedAttribute" method in this class. I don't know why the original
+    // author did this but I think we want to leave that alone so as to not break the parsing. Having said that, the namespaces break the svg when
+    // output so we should remove the namespaces here.
+
+    // First, find all the rect elements as those are the only one's which exhibit this problem:
+
+    NSError *error;
+
+    NSArray<NSXMLNode *> *rectNodes = [result nodesForXPath:@"//rect" error:&error];
+
+    if (error)
+    {
+        [result release];
+
+        return nil;
+    }
+
+    // Now replace the attributes with version without the namespace.
+    
+    for (NSXMLNode *rectNode in rectNodes)
+    {
+        NSXMLElement *element = [NSXMLElement cast:rectNode];
+
+        if (element)
+        {
+            [self removeNamespaceFromRect:element];
+        }
+    }
+
+    return result;
 }
 
 - (id)initWithFileURL:(NSURL *)aURL
@@ -131,7 +170,8 @@
 
     return [self initWithSVGString:str
                              error:error
-                          delegate:delegate];
+                          delegate:delegate
+                     closeDocument:YES];
 }
 
 - (void *)_handleErrorWithCode:(NSUInteger)code
@@ -594,7 +634,8 @@
             NSString * SVGString = element.XMLString;
             IJSVG * anSVG = [[[IJSVG alloc] initWithSVGString:SVGString
                                                         error:&error
-                                                     delegate:nil] autorelease];
+                                                     delegate:nil
+                                                closeDocument:YES] autorelease];
             
             // handle sub SVG
             if(error == nil && _respondsTo.handleSubSVG == 1) {
@@ -681,8 +722,10 @@
                           def:NO];
             
             [parentGroup addDef:group];
+
             boundingBox = NSUnionRect(boundingBox, group.calculatedBoundingBox);
             visualBoundingBox = NSUnionRect(visualBoundingBox, group.calculatedVisualBoundingBox);
+
             break;
         }
             
@@ -1225,6 +1268,14 @@
     
 }
 
+- (void)removeNamespaceFromRect:(NSXMLElement *)element
+{
+    [self removeNamespacedAttribute:(NSString *)IJSVGAttributeX element:element];
+    [self removeNamespacedAttribute:(NSString *)IJSVGAttributeY element:element];
+    [self removeNamespacedAttribute:(NSString *)IJSVGAttributeWidth element:element];
+    [self removeNamespacedAttribute:(NSString *)IJSVGAttributeHeight element:element];
+}
+
 - (void)_parseRect:(NSXMLElement *)element
           intoPath:(IJSVGPath *)path
 {
@@ -1308,6 +1359,26 @@
     node.name = key;
     node.stringValue= value;
     [element addAttribute:node];
+}
+
+- (void)removeNamespacedAttribute:(NSString *)key
+                         element:(NSXMLElement *)element
+{
+    // attempt to find the namespaced attribute
+    NSString *attributeValue = [self namespacedAttribute:(NSString *)key element:element];
+
+    if(attributeValue != nil)
+    {
+        // if found, create a new attribute without the namespace
+        NSXMLNode * node = [[[NSXMLNode alloc] initWithKind:NSXMLAttributeKind] autorelease];
+        node.name = key;
+        node.stringValue= attributeValue;
+        [element addAttribute:node];
+
+        // remove the namespaced attribute
+        key = [NSString stringWithFormat:@"ij-svg:%@",key];
+        [element removeAttributeForName:key];
+    }
 }
 
 @end
