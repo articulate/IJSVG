@@ -86,6 +86,7 @@ typedef CGFloat (^IJSVGRenderingBackingScaleFactorHelper)();
 @property (nonatomic, retain) NSColor * fillColor;
 @property (nonatomic, retain) NSColor * strokeColor;
 
+- (NSXMLDocument *)copySVGDocument;
 - (void)prepForDrawingInView:(NSView *)view;
 - (BOOL)isFont;
 - (NSRect)viewBox;
@@ -113,9 +114,11 @@ typedef CGFloat (^IJSVGRenderingBackingScaleFactorHelper)();
 
 - (id)initWithSVGString:(NSString *)string
                   error:(NSError **)error
-               delegate:(id<IJSVGDelegate>)delegate;
+               delegate:(id<IJSVGDelegate>)delegate
+          closeDocument:(BOOL)closeDocument;
 
 - (id)initWithSVGString:(NSString *)string;
+
 - (id)initWithSVGString:(NSString *)string
                   error:(NSError **)error;
 
@@ -167,8 +170,21 @@ typedef CGFloat (^IJSVGRenderingBackingScaleFactorHelper)();
 - (NSData *)PDFDataWithRect:(NSRect)rect
                       error:(NSError **)error;
 
-- (NSRect)visualBoundingBox;
-- (NSRect)boundingBoxIncludingInvisibles;
+/** This method will return the visual bounding box in the coordinate system of the SVG file. This will be needed when working with
+    the svg in its NSXmlDocument format */
+- (NSRect)visualBoundingBoxRawSVGCoordinates;
+
+/** This method will return the visual bounding box including invisible shapes and will also take into account if the image is flipped
+    for rendering. This will be needed when working with the svg in its NSXmlDocument format */
+- (NSRect)boundingBoxIncludingInvisiblesRawSVGCoordinates;
+
+/** This method will return the visual bounding box for rendering and will also take into account if the image is flipped
+    for rendering. This is the correct bounding rectangle to use when rendering to the screen */
+- (NSRect)visualBoundingBoxForRendering;
+
+/** This method will return the visual bounding box including invisible shapes and will also take into account if the image is flipped 
+    for rendering. This is the correct bounding rectangle to use when rendering to the screen */
+- (NSRect)boundingBoxIncludingInvisiblesForRendering;
 
 + (void)setRenderingDebugOptions:(IJSVGRenderingDebugOptions)renderingDebugOptions;
 
