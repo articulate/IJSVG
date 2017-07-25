@@ -218,7 +218,7 @@ static NSMutableDictionary * _colorTree = nil;
 
         CGFloat colorComponents[4] = { params[0] / 255.f, params[1] / 255.f, params[2] / 255.f, alpha};
 
-        color = [NSColor colorWithColorSpace:[NSColorSpace displayP3ColorSpace] components:colorComponents count:4];
+        color = [NSColor colorWithColorSpace:[NSColorSpace sRGBColorSpace] components:colorComponents count:4];
 
         free(params);
 
@@ -249,7 +249,7 @@ static NSMutableDictionary * _colorTree = nil;
                           forceHex:(BOOL)forceHex
 {
     // convert to RGB
-    color = [color colorUsingColorSpace:[NSColorSpace displayP3ColorSpace]];
+    color = [color colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
     
     int red = color.redComponent * 0xFF;
     int green = color.greenComponent * 0xFF;
@@ -579,7 +579,7 @@ static NSMutableDictionary * _colorTree = nil;
 + (NSColor *)changeAlphaOnColor:(NSColor *)color
                              to:(CGFloat)alphaValue
 {
-    return [[color colorWithAlphaComponent:alphaValue] colorUsingColorSpace:[NSColorSpace displayP3ColorSpace]];
+    return [[color colorWithAlphaComponent:alphaValue] colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
 }
 
 + (BOOL)isColor:(NSString *)string
@@ -634,7 +634,7 @@ static NSMutableDictionary * _colorTree = nil;
 
         CGFloat colorComponents[4] = { r / 255.f, g / 255.f, b / 255.f, alpha};
 
-        return [NSColor colorWithColorSpace:[NSColorSpace displayP3ColorSpace] components:colorComponents count:4];
+        return [NSColor colorWithColorSpace:[NSColorSpace sRGBColorSpace] components:colorComponents count:4];
     }
 
     return nil;
